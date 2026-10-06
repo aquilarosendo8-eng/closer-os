@@ -1,5 +1,7 @@
 # Closer OS
 
+Acesse o CRM publicado: **https://closer-os-rho-three.vercel.app/**
+
 CRM para closers high ticket, com interface em português e dados de demonstração.
 
 ## Executar
