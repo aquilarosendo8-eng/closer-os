@@ -7,3 +7,7 @@ test-results/
 *.tsbuildinfo
 
 .vercel/
+.vercel
+.env
+.env.*
+!.env.example

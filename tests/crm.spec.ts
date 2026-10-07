@@ -7,7 +7,7 @@ const fixedNow = new Date('2026-10-06T12:00:00-03:00')
 test.beforeEach(async ({ page }) => {
   // Each test receives a fresh browser context; freeze the date to keep demo periods stable.
   await page.clock.install({ time: fixedNow })
-  await page.goto('/')
+  await page.goto('/?demo=1')
   await expect(page.getByRole('heading', { name: 'Visão geral.' })).toBeVisible()
 })
 
@@ -34,6 +34,47 @@ test('dashboard presents the seeded revenue, rates and monthly charts', async ({
   await expect(page.getByRole('heading', { name: 'Qualificação que dá resultado' })).toBeVisible()
   await page.getByLabel('Período do dashboard').selectOption('all')
   await expect(metric(page, 'Faturamento')).toHaveText(/R\$\s*332\.000/)
+})
+
+test('public demo cannot read or overwrite personal records from the previous browser version', async ({ page }) => {
+  const originals = await page.evaluate(() => {
+    const example = JSON.parse(localStorage.getItem('closer-os-demo-leads-v1')!)[0]
+    const leads = JSON.stringify([{ ...example, id: 'legacy-private-lead', name: 'LEAD PESSOAL CONFIDENCIAL' }])
+    const settings = JSON.stringify({ name: 'PERFIL PESSOAL CONFIDENCIAL', commissionRate: 25, revenueGoal: 900000 })
+    localStorage.setItem('closer-os-leads-v1', leads)
+    localStorage.setItem('closer-os-settings-v1', settings)
+    return { leads, settings }
+  })
+  await page.addInitScript(() => {
+    const read = Storage.prototype.getItem
+    ;(window as unknown as { legacyReads: string[] }).legacyReads = []
+    Storage.prototype.getItem = function (name: string) {
+      if (name === 'closer-os-leads-v1' || name === 'closer-os-settings-v1') (window as unknown as { legacyReads: string[] }).legacyReads.push(name)
+      return read.call(this, name)
+    }
+  })
+  await page.reload()
+  await expect(metric(page, 'Faturamento')).toHaveText(/R\$\s*148\.000/)
+  await page.getByRole('button', { name: 'Configurações', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Seu workspace' })
+  await expect(settings.getByLabel('Seu nome', { exact: true })).toHaveValue('Aquila Rosendo')
+  await settings.getByLabel('Seu nome', { exact: true }).fill('Perfil da demonstração')
+  await settings.getByRole('button', { name: 'Salvar configurações' }).click()
+  const dialog = await createLead(page, 'Lead exclusivo da demonstração')
+  await dialog.getByRole('button', { name: 'Cadastrar lead' }).click()
+  await expect(dialog).not.toBeVisible()
+  expect(await page.evaluate(() => (window as unknown as { legacyReads: string[] }).legacyReads)).toEqual([])
+  const storage = await page.evaluate(() => ({
+    leads: localStorage.getItem('closer-os-leads-v1'),
+    settings: localStorage.getItem('closer-os-settings-v1'),
+    demoLeads: localStorage.getItem('closer-os-demo-leads-v1'),
+    demoSettings: localStorage.getItem('closer-os-demo-settings-v1'),
+  }))
+  expect(storage.leads).toBe(originals.leads)
+  expect(storage.settings).toBe(originals.settings)
+  expect(storage.demoLeads).toContain('Lead exclusivo da demonstração')
+  expect(storage.demoLeads).not.toContain('LEAD PESSOAL CONFIDENCIAL')
+  expect(JSON.parse(storage.demoSettings!).name).toBe('Perfil da demonstração')
 })
 
 test('a closed new lead defaults to its ticket, updates revenue and survives reload', async ({ page }) => {
@@ -135,7 +176,7 @@ test('CSV exports the selected period and backup includes all records', async ({
 })
 
 test('backup imports add new leads, preserve existing IDs and reject incomplete records atomically', async ({ page }) => {
-  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('closer-os-leads-v1')!) as Lead[])
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('closer-os-demo-leads-v1')!) as Lead[])
   const existing = before[0]
   const imported: Lead = {
     ...existing,
@@ -158,21 +199,21 @@ test('backup imports add new leads, preserve existing IDs and reject incomplete 
     buffer: Buffer.from(JSON.stringify({ version: 1, leads: [{ ...existing, name: 'Este nome não deve sobrescrever', closedValue: 1 }, imported] })),
   })
   await expect(page.getByRole('status')).toContainText('1 leads importados. Os leads existentes foram preservados.')
-  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('closer-os-leads-v1')!) as Lead[])
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('closer-os-demo-leads-v1')!) as Lead[])
   expect(after).toHaveLength(before.length + 1)
   expect(after.find(lead => lead.id === existing.id)).toEqual(existing)
   expect(after.filter(lead => lead.id === imported.id)).toEqual([imported])
 
-  const validStorage = await page.evaluate(() => localStorage.getItem('closer-os-leads-v1'))
+  const validStorage = await page.evaluate(() => localStorage.getItem('closer-os-demo-leads-v1'))
   await settings.locator('input[type="file"]').setInputFiles({
     name: 'backup-incompleto.json', mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ version: 1, leads: [{ ...imported, id: 'must-not-be-partially-imported' }, { id: 'incomplete', name: 'Lead incompleto', ticket: 100, status: 'Qualificado' }] })),
   })
   await expect(page.getByRole('status')).toContainText('Não foi possível importar.')
-  expect(await page.evaluate(() => localStorage.getItem('closer-os-leads-v1'))).toBe(validStorage)
+  expect(await page.evaluate(() => localStorage.getItem('closer-os-demo-leads-v1'))).toBe(validStorage)
   await settings.locator('input[type="file"]').setInputFiles({ name: 'backup-malformado.json', mimeType: 'application/json', buffer: Buffer.from('{') })
   await expect(page.getByRole('status')).toContainText('Não foi possível importar.')
-  expect(await page.evaluate(() => localStorage.getItem('closer-os-leads-v1'))).toBe(validStorage)
+  expect(await page.evaluate(() => localStorage.getItem('closer-os-demo-leads-v1'))).toBe(validStorage)
 
   await settings.getByRole('button', { name: 'Fechar configurações' }).click()
   await page.reload()

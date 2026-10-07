@@ -1,37 +1,54 @@
 # Closer OS
 
-Acesse o CRM publicado: **https://closer-os-rho-three.vercel.app/**
+CRM para closers high ticket, com dashboard, pipeline, avaliação de calls e evolução da equipe.
 
-CRM para closers high ticket, com interface em português e dados de demonstração.
-
-## Executar
-
-Requer Node.js 22.12+ (validado com Node.js 24) e npm.
-
-```bash
-npm ci
-npm run dev
-```
-
-## Publicar
-
-**Vercel:** importe o repositório `aquilarosendo8-eng/closer-os`, selecione a branch `main` e mantenha a pasta raiz do projeto. O `vercel.json` configura Vite, instalação com `npm ci`, build com `npm run build` e saída em `dist`. Após o deploy, a Vercel fornece o link público; novos commits na `main` atualizam o site.
-
-**GitHub Pages:** gere o site com `npm run build -- --base=./` e publique o conteúdo de `dist` na branch `gh-pages`, com `index.html` na raiz e um arquivo vazio `.nojekyll`. Em **Settings → Pages**, selecione **Deploy from a branch → gh-pages → /(root) → Save**. Após o deploy, o endereço é `https://aquilarosendo8-eng.github.io/closer-os/`.
-
-Os leads pertencem ao navegador e ao endereço usado. Ao mudar de domínio, exporte um backup em **Configurações** e importe no novo endereço.
+Aplicação publicada: **https://closer-os-rho-three.vercel.app/**. O acesso aos dados de clientes exige login, empresa autorizada e assinatura válida. A demonstração pública em `?demo=1` usa armazenamento separado, sem ler os leads pessoais da versão anterior.
 
 ## Recursos
 
-- **Dashboard:** faturamento, calls realizadas, taxas de comparecimento e fechamento, ticket médio, meta e comissão projetada. Gráficos mensais de receita, fechamento e qualificados versus fechados.
-- **Pipeline:** sete etapas, movimentação por arrastar ou seletor, busca e filtro por origem. Leads abertos com mais de cinco dias desde o último contato são destacados em vermelho.
-- **Calls:** agenda e histórico, comparecimento, nota de 0 a 10, erros, objeções, dor, urgência, capacidade financeira e decisor.
-- **Performance:** evolução semanal das notas, erros recorrentes, objeções e conversão por origem e urgência.
-- **Dados:** persistência local, exportação CSV, backup JSON e importação de leads sem substituir registros existentes. As configurações permitem remover somente a demonstração.
+- **CRM:** leads, empresa, contato, ticket previsto, origem, data da call, comparecimento, objeções, etapa, valor fechado e observações. Ao fechar uma venda, os indicadores são recalculados; oportunidades abertas sem contato há mais de cinco dias aparecem em vermelho.
+- **Dashboard:** receita, calls realizadas, show rate, close rate, ticket médio, meta e comissão projetada. Gráficos mensais de receita e fechamento, além de qualificados versus fechados.
+- **Calls e performance:** nota de 0 a 10, erros recorrentes, dor, urgência, capacidade financeira, decisor, objeções e evolução semanal. A leitura assistida de resumos usa regras locais e sugestões editáveis; não chama um provedor de IA.
+- **Contas privadas:** Supabase Auth, confirmação de e-mail, criação/alteração/recuperação de senha e saída. Uma conta sem convite aceito não acessa o CRM.
+- **Empresas e equipe:** isolamento no PostgreSQL por RLS, quatro papéis, convites revogáveis, desativação de membros, atribuição de leads e limites de assentos.
+- **Administração da plataforma:** criação de clientes, planos individual/equipe, períodos de teste e controle manual de assinaturas. O papel da plataforma não concede acesso aos leads de um cliente.
+- **Dados:** CSV, backup JSON, importação sem sobrescrever IDs existentes e migração explícita dos leads pessoais do navegador. O administrador da empresa dispõe de portabilidade, política de retenção, transferência de responsabilidade e exclusão com confirmação.
 
-Ao fechar um lead, informe o valor fechado. Receita, ticket médio, comissão e gráficos são recalculados automaticamente. A receita é atribuída à data de fechamento. O show rate exclui calls pendentes; o close rate considera vendas fechadas sobre comparecimentos. A central de ajuda explica os denominadores.
+Receita usa a data de fechamento; show rate exclui calls pendentes; close rate divide vendas fechadas por comparecimentos. A comissão é uma projeção gerencial, não um pagamento conciliado. A central de ajuda descreve os denominadores.
 
-A leitura assistida de resumos é uma análise local por regras, com sugestões editáveis. Não chama um serviço de IA nem exige uma chave.
+## Executar
+
+Requer Node.js 22.12+ para o frontend e npm. Use Node.js 24 para o ambiente completo, incluindo provisionamento com suporte ao proxy e aos certificados do sistema.
+
+```bash
+npm ci
+cp .env.example .env.local
+npm run dev
+```
+
+Preencha somente a URL e a chave **pública** do Supabase no arquivo local. Sem configuração, a aplicação exibe a preparação do acesso e permite explorar a demonstração. Nunca coloque chaves secretas em variáveis `VITE_*`.
+
+## Ativar a infraestrutura
+
+1. Conecte um projeto Supabase à Vercel pela integração oficial. A configuração do Vite reconhece as variáveis públicas da integração; `.env.example` também mostra a configuração explícita.
+2. Configure as credenciais de provisionamento e `CLOSER_OWNER_EMAIL`/`CLOSER_APP_URL` no ambiente protegido da Vercel conforme [Operação](docs/OPERACAO.md) e [Backend](supabase/README.md). O schema desta implantação foi instalado pelo provisionamento do build. Em instalações novas, o mesmo procedimento aplica a migration uma vez; nas seguintes, confere versão/checksum e RLS. A conexão mantém a verificação TLS, incluindo o [certificado público do Supabase](scripts/certs/README.md).
+3. Configure o domínio nas URLs permitidas do Auth, confirmação de e-mail e entrega SMTP. O proprietário define sua própria senha; administradores não recebem senhas de usuários.
+4. Publique na Vercel com Node.js 24. `vercel.json` usa `npm ci`, `npm run build:cloud` e a saída `dist`. `build:cloud` verifica/provisiona o banco antes de gerar o frontend; não envia convites automaticamente em cada deploy. Alterar variáveis públicas requer novo deploy.
+5. Entre como proprietário da plataforma, crie a empresa cliente e compartilhe o convite do administrador. Um cliente novo começa com plano individual, um assento e 14 dias de teste; amplie o plano antes de convidar a equipe.
+
+Conectar a integração fornece configurações; o build configurado é que instala/verifica as tabelas e regras do CRM. O código também não configura automaticamente as URLs do Supabase Auth nem contrata domínio, SMTP, backup gerenciado ou provedor financeiro.
+
+## Papéis
+
+| Perfil | Escopo |
+| --- | --- |
+| Administrador da plataforma | Clientes, assinaturas e gestão de acessos. Para consultar CRM precisa de vínculo explícito com a empresa. |
+| `admin` | Leads, equipe, metas e operações de privacidade da própria empresa. |
+| `manager` | Leads da empresa, distribuição de responsáveis, metas e consulta da equipe. Não promove membros nem administra cobrança. |
+| `closer` | Consulta e edição dos leads atribuídos a si. |
+| `viewer` | Consulta dos leads da empresa, sem edição e sem exportação pela interface. |
+
+O banco valida as permissões mesmo em chamadas diretas à API. Desativação, vencimento e suspensão são conferidos a cada requisição; não dependem de esconder botões.
 
 ## Validação
 
@@ -39,21 +56,30 @@ A leitura assistida de resumos é uma análise local por regras, com sugestões 
 npm test
 npm run build
 npm run test:e2e
+npm run test:saas
+npm run test:db
 ```
 
-Os testes de navegador usam Chromium. Neste ambiente ele está em `/usr/bin/chromium`. Em outras máquinas, defina `CHROMIUM_PATH` para uma instalação compatível ou instale o browser do Playwright com `npx playwright install chromium`; sem `CHROMIUM_PATH` e sem o Chromium do sistema, o runner usa a instalação do Playwright. O servidor de teste é iniciado automaticamente quando necessário.
+Os testes cobrem métricas/validação, demonstração, autenticação, administração e isolamento no banco. `test:saas` reúne 20 fluxos de navegador com respostas simuladas da API para verificar autenticação/administração, incluindo ativação por convite de Auth e recuperação. `test:db` executa a migration e **127 verificações reais** em um banco PostgreSQL isolado, incluindo disputas concorrentes por assentos e convites. Esses comandos não usam o projeto Supabase de produção.
 
-## Armazenamento e limites
+No Supabase conectado, `scripts/test-live.mjs` foi executado com **59 verificações reais de Auth/REST/RLS**: login, convites, papéis, isolamento entre empresas, persistência, distribuição de leads, suspensão e desativação. As contas, empresas e demais fixtures temporárias foram removidas ao concluir. Essa verificação exige credenciais protegidas e autorização para criar fixtures; não faz parte automática da suíte local. Ela não testa entrega de e-mails nem restauração de backups.
 
-Esta versão funciona sem backend: os dados ficam no `localStorage` do navegador e não são sincronizados entre dispositivos ou usuários. Faça backups antes de limpar o navegador. A importação aceita backups completos da versão 1, adiciona IDs ainda não existentes e preserva os leads e configurações atuais.
+Os testes de navegador usam `/usr/bin/chromium` quando disponível. Em outra máquina, defina `CHROMIUM_PATH` ou instale o browser com `npx playwright install chromium`. O teste de banco requer Docker com PostgreSQL 17. Consulte [Backend](supabase/README.md) para o isolamento e a limpeza dos recursos de teste.
 
-Dados demonstrativos são gerados em relação à data do primeiro acesso e identificados na interface. Você pode removê-los em **Configurações → Remover dados de demonstração**, preservando seus leads.
+## Operação comercial
 
-Não há autenticação, integração com calendário, WhatsApp ou provedor de IA nesta versão. O modelo e os componentes estão separados para facilitar a futura integração com uma API e banco de dados.
+Consulte o [checklist de comercialização](docs/COMERCIALIZACAO.md) e os procedimentos de [operação, acesso, migração e recuperação](docs/OPERACAO.md).
+
+A cobrança nesta versão é **manual**: após confirmar o pagamento por um canal externo, o operador atualiza a assinatura. Não há checkout, renovação financeira automática, webhook de pagamento, emissão fiscal, gravação/transcrição de calls, calendário ou WhatsApp integrado.
+
+Os [termos](docs/TERMOS.md) e a [política de privacidade](docs/PRIVACIDADE.md) são modelos pendentes de identificação do operador e condições comerciais. Os documentos na interface também são provisórios. SMTP, suporte, backups, recuperação e revisão dos textos precisam corresponder aos serviços e procedimentos efetivamente configurados.
 
 ## Estrutura
 
-- `src/App.tsx`: navegação, armazenamento, pesquisa, backup e configurações.
-- `src/components/`: dashboard, pipeline, cadastro, calls e performance.
-- `src/lib/`: dados de demonstração, métricas e validação de backups.
-- `tests/`: testes de métricas, validação e fluxos de navegador.
+- `src/SaaSApp.tsx`: sessão, convites, seleção de empresa, bloqueio de acesso e conta.
+- `src/App.tsx` e `src/components/`: CRM, autenticação, administração, relatórios e interface.
+- `src/lib/`: cliente público Supabase, acesso, dados na nuvem, métricas e validação.
+- `supabase/migrations/`: schema, RPCs, isolamento e auditoria.
+- `scripts/`: provisionamento seguro e testes PostgreSQL isolados.
+- `tests/`: testes unitários e de navegador.
+- `docs/`: operação, comercialização e modelos de documentos.
