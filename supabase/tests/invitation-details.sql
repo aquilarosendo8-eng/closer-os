@@ -1,0 +1,71 @@
+\set ON_ERROR_STOP on
+-- Additional invitation contracts after migration003; uses the disposable harness helpers.
+select test.ok((select count(*)=1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='invite_member'),'named invitation has no ambiguous function overload');
+select test.ok(to_regprocedure('public.invite_member(uuid,text,text)') is null,'old three-argument signature is removed');
+select test.ok((select pronargdefaults=2 from pg_proc where oid='public.invite_member(uuid,text,text,text)'::regprocedure),'name and role have backwards-compatible defaults');
+select test.ok(not has_function_privilege('anon','public.invite_member(uuid,text,text,text)','EXECUTE'),'anonymous cannot issue named invitations');
+select test.ok(has_function_privilege('authenticated','public.invite_member(uuid,text,text,text)','EXECUTE'),'authenticated role can invoke named invitation with tenant authorization');
+insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000020','named20@example.test',now(),'{}'),
+ ('00000000-0000-0000-0000-000000000021','named21@example.test',now(),'{"display_name":"Nome escolhido pela pessoa"}'),
+ ('00000000-0000-0000-0000-000000000022','named22@example.test',now(),'{}');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+insert into test.context values('named_ws',public.create_workspace('Empresa com convites')::text);
+insert into test.context values('legacy_named_token',public.invite_member(test.value('named_ws')::uuid,'named20@example.test','admin')->>'token');
+select test.ok((public.list_invitation_preview(test.value('legacy_named_token'))->'name')='null'::jsonb,'old three-argument invitation preserves nullable name');
+select test.denied(format('select public.invite_member(%L,''named20@example.test'',''admin'','' '')',test.value('named_ws')),'22023','blank invited name is rejected');
+select test.denied(format('select public.invite_member(%L,''named20@example.test'',''admin'',''A'')',test.value('named_ws')),'22023','one-character invited name is rejected');
+select test.denied(format('select public.invite_member(%L,''named20@example.test'',''admin'',repeat(''a'',121))',test.value('named_ws')),'22023','overlong invited name is rejected');
+select test.denied(format('select public.invite_member(%L,''named20@example.test'',''admin'',%L)',test.value('named_ws'),E'\t\n'),'22023','control-only invited name is rejected');
+insert into test.context values('named_owner_token',public.invite_member(test.value('named_ws')::uuid,'named20@example.test','admin','  Nome do convite  ')->>'token');
+select test.ok(public.list_invitation_preview(test.value('legacy_named_token')) is null,'named reissue invalidates old legacy token');
+select test.ok((public.list_invitation_preview(test.value('named_owner_token'))->>'name')='Nome do convite','preview includes trimmed invited name');
+select test.ok((public.list_invitation_preview(test.value('named_owner_token'))->>'workspace_name')='Empresa com convites','named preview includes the correct company');
+select test.ok((select entry->>'status'='pending' and entry->>'name'='Nome do convite' from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'revoked_at' is null),'named invitation starts pending');
+reset role;
+select test.ok((select display_name='Nome do convite' from public.invitations where token_hash=encode(extensions.digest(test.value('named_owner_token'),'sha256'),'hex')),'database stores invited name separately from the secret token');
+select test.ok(not exists(select 1 from public.audit_logs where details::text like '%Nome do convite%'),'invited personal name is absent from audit metadata');
+set role anon;
+select test.ok((public.list_invitation_preview(test.value('named_owner_token'))->>'name')='Nome do convite','anonymous preview reveals name only through exact token');
+select test.denied(format('select public.list_invitations(%L)',test.value('named_ws')),'42501','anonymous cannot enumerate named invitations');
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000021',false);
+select test.denied(format('select public.accept_invitation(%L)',test.value('named_owner_token')),'42501','name does not bypass recipient email binding');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000020',false);
+select test.ok(public.accept_invitation(test.value('named_owner_token'))=test.value('named_ws')::uuid,'named recipient activates correct company');
+select test.ok((select display_name='Nome do convite' from public.profiles where id=auth.uid()),'named acceptance fills only default email-derived profile name');
+select test.ok((select entry->>'status'='activated' and entry->>'accepted_by'=auth.uid()::text from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'accepted_at' is not null),'administrator sees activated invitation and recipient id');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.admin_update_subscription(test.value('named_ws')::uuid,'team','active',3);
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000020',false);
+insert into test.context values('named_closer_token',public.invite_member(test.value('named_ws')::uuid,'named21@example.test','closer','Nome enviado pelo gestor')->>'token');
+insert into test.context values('named_expired_token',public.invite_member(test.value('named_ws')::uuid,'named22@example.test','viewer','Leitor com convite')->>'token');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000021',false);
+select public.accept_invitation(test.value('named_closer_token'));
+select test.ok((select display_name='Nome escolhido pela pessoa' from public.profiles where id=auth.uid()),'acceptance preserves the account holder chosen name');
+select test.ok((select role='closer' and is_active from public.memberships where workspace_id=test.value('named_ws')::uuid and user_id=auth.uid()),'invited closer receives only invited tenant role');
+select test.ok((select count(*)=0 from public.platform_admins),'invited display name cannot grant platform administration');
+select test.denied(format('select public.list_invitations(%L)',test.value('named_ws')),'42501','activated closer cannot list other invitations');
+reset role;
+update public.invitations set created_at=now()-interval '8 days',expires_at=now()-interval '1 hour'
+where token_hash=encode(extensions.digest(test.value('named_expired_token'),'sha256'),'hex');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000020',false);
+select test.ok((select entry->>'status'='expired' from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'email'='named22@example.test'),'administrator sees expired invitation state');
+select test.ok(public.list_invitation_preview(test.value('named_expired_token')) is null,'expired named invitation cannot be previewed');
+select public.update_member(test.value('named_ws')::uuid,'00000000-0000-0000-0000-000000000021','closer',false);
+select test.ok((select entry->>'status'='deactivated' from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'email'='named21@example.test'),'invitation snapshot reflects member deactivation');
+select public.update_member(test.value('named_ws')::uuid,'00000000-0000-0000-0000-000000000021','closer',true);
+select test.ok((select entry->>'status'='activated' from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'email'='named21@example.test'),'invitation snapshot reflects member reactivation');
+insert into test.context values('named_resend_token',public.invite_member(test.value('named_ws')::uuid,'named22@example.test','viewer','Nome corrigido no reenvio')->>'token');
+select test.ok((public.list_invitation_preview(test.value('named_resend_token'))->>'name')='Nome corrigido no reenvio','resend issues fresh named token after expiration');
+select test.ok(public.list_invitation_preview(test.value('named_expired_token')) is null,'resend never revives old expired token');
+select test.ok((select count(*)=1 from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'email'='named22@example.test' and entry->>'status'='pending'),'resend keeps exactly one pending invitation');
+select test.ok((select count(*)=1 from jsonb_array_elements(public.list_invitations(test.value('named_ws')::uuid)) entry where entry->>'email'='named22@example.test' and entry->>'status'='revoked'),'resend marks old named invitation revoked');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000022',false);
+select test.denied(format('select public.accept_invitation(%L)',test.value('named_expired_token')),'42501','old named token is rejected on acceptance after resend');
+select test.ok(public.accept_invitation(test.value('named_resend_token'))=test.value('named_ws')::uuid,'resent named invitation activates the intended company');
+reset role;
+select 'Named invitation assertions passed: ' || count(*) from test.results;

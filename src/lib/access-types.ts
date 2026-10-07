@@ -30,11 +30,18 @@ export interface Subscription {
 export interface Invitation {
   id: string
   email: string
+  name?: string | null
   role: WorkspaceRole
   expiresAt: string
   acceptedAt?: string | null
   revokedAt?: string | null
+  acceptedBy?: string | null
+  status?: 'pending' | 'activated' | 'expired' | 'revoked' | 'deactivated'
 }
+
+export interface InvitationInput { email: string; role: WorkspaceRole; name?: string | null }
+export interface EmailInvitationResult { invitation: Invitation; url: string; emailSent: true }
+export interface ManualInvitationResult { invitation: Invitation; url: string; manualLink: true; requiresSignIn?: boolean }
 
 export interface AuditEntry {
   id: string
@@ -79,7 +86,8 @@ export interface AdministrationService {
   listMembers(workspaceId: string): Promise<Membership[]>
   updateMember(workspaceId: string, userId: string, changes: MemberUpdate): Promise<void>
   listInvitations(workspaceId: string): Promise<Invitation[]>
-  createInvitation(workspaceId: string, input: { email: string; role: WorkspaceRole }): Promise<{ invitation: Invitation; url: string; emailSent: true }>
+  createInvitation(workspaceId: string, input: InvitationInput): Promise<EmailInvitationResult>
+  createManualInvitation(workspaceId: string, input: InvitationInput): Promise<ManualInvitationResult>
   revokeInvitation(workspaceId: string, invitationId: string): Promise<void>
   listAudit(workspaceId: string): Promise<AuditEntry[]>
   listPlatformWorkspaces(): Promise<PlatformWorkspace[]>

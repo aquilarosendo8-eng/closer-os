@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import type { AdministrationService, AuditEntry, Invitation, Membership, PlatformWorkspace, Subscription, WorkspaceAccess, WorkspaceRole } from './access-types'
+import type { AdministrationService, AuditEntry, Invitation, InvitationInput, Membership, PlatformWorkspace, Subscription, WorkspaceAccess, WorkspaceRole } from './access-types'
 import { requireSupabase } from './supabase'
 import { defaultSettings } from './data'
 
@@ -24,7 +24,7 @@ export function subscriptionAllowsAccess(value: Subscription, now = new Date()):
   return Number.isFinite(end) && end > now.getTime()
 }
 const member = (row: Row): Membership => ({ userId: row.user_id, email: row.email || '', displayName: row.display_name || row.email || 'Usuário', role: row.role as WorkspaceRole, active: Boolean(row.is_active) })
-const invitation = (row: Row): Invitation => ({ id: row.id, email: row.email, role: row.role, expiresAt: row.expires_at, acceptedAt: row.accepted_at, revokedAt: row.revoked_at })
+const invitation = (row: Row): Invitation => ({ id: row.id, email: row.email, name: row.name ?? null, role: row.role, expiresAt: row.expires_at, acceptedAt: row.accepted_at, revokedAt: row.revoked_at, acceptedBy: row.accepted_by, status: row.status })
 
 export interface AccessSnapshot { workspaces: WorkspaceAccess[]; isPlatformAdmin: boolean; displayName: string }
 export async function loadAccess(user: User): Promise<AccessSnapshot> {
@@ -60,12 +60,40 @@ export async function loadAccess(user: User): Promise<AccessSnapshot> {
   return { workspaces, isPlatformAdmin, displayName }
 }
 
-export async function invitationPreview(token: string): Promise<{ email: string; workspaceName: string; expiresAt: string }> {
+export async function invitationPreview(token: string): Promise<{ email: string; name: string | null; workspaceName: string; expiresAt: string }> {
   if (!/^[a-f0-9]{64}$/i.test(token)) throw new Error('Este convite não é válido.')
   const { data, error } = await requireSupabase().rpc('list_invitation_preview', { p_token: token })
   assert(error)
   if (!data?.email) throw new Error('Este convite expirou ou já foi utilizado. Solicite outro ao administrador.')
-  return { email: data.email, workspaceName: data.workspace_name, expiresAt: data.expires_at }
+  return { email: data.email, name: data.name ?? null, workspaceName: data.workspace_name, expiresAt: data.expires_at }
+}
+
+export async function createOwnWorkspace(input: { name: string; displayName: string; acceptTerms: boolean }): Promise<string> {
+  const name = input.name.trim(), displayName = input.displayName.trim()
+  if (!input.acceptTerms) throw new Error('Leia e aceite os termos de uso e a política de privacidade para criar sua empresa.')
+  if (!name || name.length > 120 || displayName.length < 2 || displayName.length > 120) throw new Error('Informe seu nome e o nome da empresa.')
+  const { data, error } = await requireSupabase().rpc('create_own_workspace', { p_name: name, p_display_name: displayName, p_accept_terms: true })
+  assert(error)
+  if (typeof data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data)) throw new Error('Não foi possível confirmar a criação da empresa. Atualize seu acesso antes de tentar novamente.')
+  return data
+}
+
+async function requestInvitation(workspaceId: string, input: InvitationInput, manual: boolean) {
+  const { data: session, error } = await requireSupabase().auth.getSession(); assert(error)
+  if (!session.session) throw new Error('Entre novamente para preparar o convite.')
+  const name = input.name?.trim() || undefined
+  if (name !== undefined && (name.length < 2 || name.length > 120)) throw new Error('Informe um nome com 2 a 120 caracteres.')
+  const response = await fetch(manual ? '/api/invitation-link' : '/api/invitations', {
+    method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${session.session.access_token}` },
+    body: JSON.stringify({ workspaceId, email: input.email.trim().toLowerCase(), role: input.role, ...(name ? { name } : {}) }),
+    signal: AbortSignal.timeout(45000),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : result?.error?.message || (manual ? 'Não foi possível gerar o link de acesso. Tente novamente.' : 'Não foi possível enviar o convite por e-mail. Tente novamente.'))
+  if (!result?.invitation?.id || typeof result.url !== 'string' || !result.url || (manual ? result.manualLink !== true : result.emailSent !== true)) {
+    throw new Error('Não recebemos a confirmação do convite. Atualize a lista de convites antes de tentar novamente.')
+  }
+  return { invitation: invitation(result.invitation), url: result.url, ...(manual && result.requiresSignIn === true ? { requiresSignIn: true } : {}) }
 }
 
 export const administrationService: AdministrationService = {
@@ -83,17 +111,10 @@ export const administrationService: AdministrationService = {
     return (data || []).map(invitation)
   },
   async createInvitation(workspaceId, input) {
-    const { data: session, error } = await requireSupabase().auth.getSession(); assert(error)
-    if (!session.session) throw new Error('Entre novamente para enviar o convite.')
-    const response = await fetch('/api/invitations', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.session.access_token}` },
-      body: JSON.stringify({ workspaceId, email: input.email.trim().toLowerCase(), role: input.role }),
-    })
-    const result = await response.json().catch(() => null)
-    if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : result?.error?.message || 'Não foi possível enviar o convite por e-mail. Tente novamente.')
-    if (!result?.invitation?.id || !result.url || result.emailSent !== true) throw new Error('Não recebemos a confirmação do envio. Atualize a lista de convites antes de tentar novamente.')
-    return { invitation: invitation(result.invitation), url: result.url, emailSent: true }
+    return { ...await requestInvitation(workspaceId, input, false), emailSent: true }
+  },
+  async createManualInvitation(workspaceId, input) {
+    return { ...await requestInvitation(workspaceId, input, true), manualLink: true }
   },
   async revokeInvitation(workspaceId, invitationId) {
     const { error } = await requireSupabase().rpc('revoke_invitation', { p_workspace_id: workspaceId, p_invitation_id: invitationId }); assert(error)
@@ -111,7 +132,7 @@ export const administrationService: AdministrationService = {
     const workspaceId = typeof data === 'string' ? data : data?.id
     if (!workspaceId) throw new Error('Não foi possível criar a empresa.')
     try {
-      const result = await this.createInvitation(workspaceId, { email: input.ownerEmail, role: 'admin' })
+      const result = await this.createInvitation(workspaceId, { email: input.ownerEmail, role: 'admin', name: input.ownerName })
       return { id: workspaceId, invitationUrl: result.url, emailSent: true }
     } catch (error) {
       throw Object.assign(new Error(`A empresa foi criada, mas não foi possível enviar o convite. Selecione-a e tente convidar o administrador novamente. ${error instanceof Error ? error.message : ''}`), { workspaceId })

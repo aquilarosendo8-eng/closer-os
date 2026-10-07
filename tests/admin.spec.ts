@@ -1,10 +1,11 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Route } from '@playwright/test'
 
 const smtpFailureMessage = 'Configure o SMTP do Supabase para enviar convites a este destinatário. O convite foi cancelado.'
+type FixtureInvitation = { id: string; workspace_id: string; email: string; name?: string | null; role: string; expires_at: string; accepted_at: string | null; revoked_at: string | null }
 
 // HTTP fixtures test the SaaS UI and adapters. The SQL suite separately verifies
 // authorization in the database, without relying on mocked server permissions.
-async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'closer' = 'company', options: { invitationFailure?: boolean } = {}) {
+async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'closer' = 'company', options: { invitationFailure?: boolean; pendingInvitation?: boolean; acceptedInvitation?: boolean; existingAccountManualLink?: boolean } = {}) {
   const ownerId = '00000000-0000-4000-8000-000000000001'
   const otherAdminId = '00000000-0000-4000-8000-000000000002'
   const closerId = '00000000-0000-4000-8000-000000000003'
@@ -26,7 +27,9 @@ async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'c
     invitations: [
       { id: 'revoked-1', workspace_id: workspaceId, email: 'revoked@example.com', role: 'closer', expires_at: '2030-01-01T00:00:00Z', accepted_at: null, revoked_at: '2026-10-01T00:00:00Z' },
       { id: 'expired-1', workspace_id: workspaceId, email: 'expired@example.com', role: 'closer', expires_at: '2000-01-01T00:00:00Z', accepted_at: null, revoked_at: null },
-    ],
+      ...(options.pendingInvitation ? [{ id: 'pending-1', workspace_id: workspaceId, name: 'Nina Convidada', email: 'nova@example.com', role: 'manager', expires_at: '2030-01-01T00:00:00Z', accepted_at: null, revoked_at: null }] : []),
+      ...(options.acceptedInvitation ? [{ id: 'accepted-1', workspace_id: workspaceId, name: 'Caio Closer', email: 'closer@example.com', role: 'closer', expires_at: '2000-01-01T00:00:00Z', accepted_at: '2026-10-01T12:00:00Z', revoked_at: null }] : []),
+    ] as FixtureInvitation[],
     privacy: { retentionDays: 365, privacyContactEmail: 'privacy@example.com' },
     calls: [] as { path: string; method: string; query: string; body: Record<string, unknown> | null }[],
     deleted: false,
@@ -75,17 +78,23 @@ async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'c
     }
     await json({ message: `Unexpected mocked endpoint: ${path}` }, 500)
   })
-  await page.route('**/api/invitations', async route => {
+  const mockInvitation = async (route: Route, manual: boolean) => {
     const request = route.request(), body = request.postDataJSON() as Record<string, unknown>
-    state.calls.push({ path: '/api/invitations', method: request.method(), query: '', body })
+    state.calls.push({ path: manual ? '/api/invitation-link' : '/api/invitations', method: request.method(), query: '', body })
     state.invitationAuthenticated = /^Bearer .+/.test(request.headers().authorization || '')
     const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) })
     if (!state.invitationAuthenticated) { await json({ error: 'Faça login para enviar convites.' }, 401); return }
-    if (state.invitationFailure) { await json({ error: { code: 'EMAIL_CONFIGURATION_REQUIRED', message: smtpFailureMessage } }, 503); return }
-    const invitation = { id: `new-invitation-${state.invitations.length}`, workspace_id: String(body.workspaceId), email: String(body.email), role: String(body.role), expires_at: '2030-01-01T00:00:00Z', accepted_at: null, revoked_at: null }
+    if (!manual && state.invitationFailure) { await json({ error: { code: 'EMAIL_CONFIGURATION_REQUIRED', message: smtpFailureMessage } }, 503); return }
+    // Represent the server's replacement response; its locking/revocation is tested in SQL/API suites.
+    for (const previous of state.invitations) if (previous.workspace_id === body.workspaceId && previous.email === body.email && !previous.accepted_at && !previous.revoked_at) previous.revoked_at = new Date().toISOString()
+    const invitation = { id: `new-invitation-${state.invitations.length}`, workspace_id: String(body.workspaceId), name: typeof body.name === 'string' ? body.name : null, email: String(body.email), role: String(body.role), expires_at: '2030-01-01T00:00:00Z', accepted_at: null, revoked_at: null }
     state.invitations.push(invitation)
-    await json({ invitation, url: `${new URL(request.url()).origin}/?invite=${'b'.repeat(64)}`, emailSent: true })
-  })
+    const token = ['b', 'c', 'd', 'e'][(state.calls.filter(call => call.path.startsWith('/api/invitation')).length - 1) % 4].repeat(64)
+    const url = `${new URL(request.url()).origin}/?${manual && !options.existingAccountManualLink ? `flow=activate&token_hash=${'f'.repeat(64)}&type=invite&` : ''}invite=${token}${manual && options.existingAccountManualLink ? '&login=1' : ''}`
+    await json({ invitation, url, ...(manual ? { manualLink: true, ...(options.existingAccountManualLink ? { requiresSignIn: true } : {}) } : { emailSent: true }) })
+  }
+  await page.route('**/api/invitations', route => mockInvitation(route, false))
+  await page.route('**/api/invitation-link', route => mockInvitation(route, true))
   await page.goto('/')
   if (mode !== 'platform') {
     await expect(page.getByRole('heading', { name: 'Visão geral.' })).toBeVisible()
@@ -162,7 +171,9 @@ test('company deletion requires the exact name and refreshes access', async ({ p
   await expect(confirm).toBeEnabled()
   await confirm.click()
   await expect(dialog).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Sua conta aguarda um convite' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vamos criar sua empresa.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Visão geral.' })).toHaveCount(0)
+  expect(state.calls.filter(call => call.path.endsWith('/create_own_workspace'))).toHaveLength(0)
   expect(state.deleted).toBe(true)
   expect(state.calls.find(call => call.path.endsWith('/delete_workspace'))?.body).toEqual({ p_workspace_id: state.workspaceId, p_confirmation: 'Empresa Teste' })
 })
@@ -199,8 +210,13 @@ test('invitation sends authenticated email request and offers a secondary access
   const state = await mountAdministration(page)
   await page.getByRole('button', { name: 'Convidar pessoa', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Convide alguém para a equipe' })
+  await dialog.getByLabel('Nome da pessoa', { exact: true }).fill('A')
   await dialog.getByLabel('E-mail da pessoa').fill('Nova@EXAMPLE.com')
   await dialog.getByLabel('Papel na empresa').selectOption('manager')
+  await dialog.getByRole('button', { name: 'Enviar convite', exact: true }).click()
+  await expect(dialog).toBeVisible()
+  expect(state.calls.filter(call => call.path === '/api/invitations')).toHaveLength(0)
+  await dialog.getByLabel('Nome da pessoa', { exact: true }).fill('Nova Pessoa')
   await dialog.getByRole('button', { name: 'Enviar convite', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('status')).toContainText('Convite enviado por e-mail.')
@@ -210,7 +226,7 @@ test('invitation sends authenticated email request and offers a secondary access
   await expect(page.getByRole('row').filter({ hasText: 'nova@example.com' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Convidar pessoa', exact: true })).toBeDisabled()
   expect(state.invitationAuthenticated).toBe(true)
-  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toEqual({ workspaceId: state.workspaceId, email: 'nova@example.com', role: 'manager' })
+  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toEqual({ workspaceId: state.workspaceId, email: 'nova@example.com', role: 'manager', name: 'Nova Pessoa' })
   expect(state.calls.filter(call => call.path.endsWith('/invite_member'))).toHaveLength(0)
 })
 
@@ -218,6 +234,7 @@ test('email failure leaves no sent notice or link and refreshes available places
   const state = await mountAdministration(page, 'company', { invitationFailure: true })
   await page.getByRole('button', { name: 'Convidar pessoa', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Convide alguém para a equipe' })
+  await dialog.getByLabel('Nome da pessoa', { exact: true }).fill('Novo Convidado')
   await dialog.getByLabel('E-mail da pessoa').fill('novo@example.com')
   await dialog.getByRole('button', { name: 'Enviar convite', exact: true }).click()
   await expect(dialog.getByRole('alert')).toHaveText(smtpFailureMessage)
@@ -226,7 +243,7 @@ test('email failure leaves no sent notice or link and refreshes available places
   await expect(page.getByLabel('Link do convite', { exact: true })).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Convidar pessoa', exact: true })).toBeEnabled()
-  await expect(page.getByText('Nenhum convite pendente.', { exact: false })).toBeVisible()
+  await expect(page.locator('.ad-team-overview')).toContainText('0 convites pendentes')
   expect(state.calls.filter(call => call.path === '/api/invitations')).toHaveLength(1)
   expect(state.calls.filter(call => call.path.endsWith('/list_invitations')).length).toBeGreaterThan(1)
 })
@@ -236,15 +253,19 @@ test('new company sends the first administrator invitation by email', async ({ p
   await page.getByRole('button', { name: 'Nova empresa', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Uma nova empresa' })
   await dialog.getByLabel('Nome da empresa', { exact: true }).fill('Empresa Comercial')
-  await dialog.getByLabel('Nome do administrador', { exact: true }).fill('Nina Admin')
+  await dialog.getByLabel('Nome do administrador', { exact: true }).fill('A')
   await dialog.getByLabel('E-mail do administrador', { exact: true }).fill('nina@example.com')
+  await dialog.getByRole('button', { name: 'Criar empresa e enviar convite', exact: true }).click()
+  await expect(dialog).toBeVisible()
+  expect(state.calls.filter(call => call.path.endsWith('/create_workspace'))).toHaveLength(0)
+  await dialog.getByLabel('Nome do administrador', { exact: true }).fill('Nina Admin')
   await dialog.getByRole('button', { name: 'Criar empresa e enviar convite', exact: true }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('status')).toContainText('Empresa criada e convite enviado por e-mail ao administrador.')
   await expect(page.getByRole('row').filter({ hasText: 'Empresa Comercial' })).toBeVisible()
   await expect(page.getByText('Envio solicitado para nina@example.com.', { exact: false })).toBeVisible()
   expect(state.calls.filter(call => call.path.endsWith('/create_workspace'))).toHaveLength(1)
-  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toEqual({ workspaceId: state.additionalWorkspaces[0].id, email: 'nina@example.com', role: 'admin' })
+  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toEqual({ workspaceId: state.additionalWorkspaces[0].id, email: 'nina@example.com', role: 'admin', name: 'Nina Admin' })
 })
 
 test('partial company creation retries email in the existing company without duplicating it', async ({ page }) => {
@@ -252,6 +273,7 @@ test('partial company creation retries email in the existing company without dup
   await page.getByRole('button', { name: 'Nova empresa', exact: true }).click()
   const createDialog = page.getByRole('dialog', { name: 'Uma nova empresa' })
   await createDialog.getByLabel('Nome da empresa', { exact: true }).fill('Empresa Comercial')
+  await createDialog.getByLabel('Nome do administrador', { exact: true }).fill('Nina Admin')
   await createDialog.getByLabel('E-mail do administrador', { exact: true }).fill('nina@example.com')
   await createDialog.getByRole('button', { name: 'Criar empresa e enviar convite', exact: true }).click()
   await expect(createDialog).toHaveCount(0)
@@ -264,6 +286,7 @@ test('partial company creation retries email in the existing company without dup
   state.invitationFailure = false
   await page.getByRole('button', { name: 'Convidar pessoa', exact: true }).click()
   const inviteDialog = page.getByRole('dialog', { name: 'Convide alguém para a equipe' })
+  await expect(inviteDialog.getByLabel('Nome da pessoa', { exact: true })).toHaveValue('Nina Admin')
   await expect(inviteDialog.getByLabel('E-mail da pessoa')).toHaveValue('nina@example.com')
   await expect(inviteDialog.getByLabel('Papel na empresa')).toHaveValue('admin')
   await inviteDialog.getByRole('button', { name: 'Enviar convite', exact: true }).click()
@@ -272,4 +295,79 @@ test('partial company creation retries email in the existing company without dup
   expect(state.calls.filter(call => call.path.endsWith('/create_workspace'))).toHaveLength(1)
   expect(state.calls.filter(call => call.path === '/api/invitations')).toHaveLength(2)
   expect(state.additionalWorkspaces).toHaveLength(1)
+})
+
+test('pending and activated invitations are distinct and resend preserves the reserved place', async ({ page }) => {
+  const state = await mountAdministration(page, 'company', { pendingInvitation: true, acceptedInvitation: true })
+  const table = page.locator('.ad-invitation-table')
+  const pending = table.getByRole('row').filter({ hasText: 'nova@example.com' })
+  await expect(pending).toContainText('Nina Convidada')
+  await expect(pending).toContainText('Pendente')
+  const activated = table.getByRole('row').filter({ hasText: 'closer@example.com' })
+  await expect(activated).toContainText('Ativado')
+  await expect(activated.getByRole('button')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Convidar pessoa', exact: true })).toBeDisabled()
+  await pending.getByRole('button', { name: 'Reenviar convite para nova@example.com', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Convite reenviado por e-mail. O link anterior deixa de valer.')
+  await expect(table.getByRole('row').filter({ hasText: 'nova@example.com' })).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Convidar pessoa', exact: true })).toBeDisabled()
+  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toEqual({ workspaceId: state.workspaceId, email: 'nova@example.com', role: 'manager', name: 'Nina Convidada' })
+})
+
+test('copying an existing-account invitation shares only company access and requires the recipient login', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await mountAdministration(page, 'company', { pendingInvitation: true, existingAccountManualLink: true })
+  const pending = page.locator('.ad-invitation-table').getByRole('row').filter({ hasText: 'nova@example.com' })
+  await pending.getByRole('button', { name: 'Copiar link de nova@example.com', exact: true }).click()
+  await expect(page.getByText('Link do convite para WhatsApp', { exact: true })).toBeVisible()
+  await expect(page.getByRole('status')).toContainText('O convite anterior deixa de valer.')
+  const link = await page.getByLabel('Link do convite', { exact: true }).inputValue()
+  expect(new URL(link).searchParams.has('invite')).toBe(true)
+  expect(new URL(link).searchParams.get('login')).toBe('1')
+  expect(new URL(link).searchParams.has('token_hash')).toBe(false)
+  expect(new URL(link).searchParams.has('type')).toBe(false)
+  await expect(page.getByText('Esta pessoa deve entrar com sua própria senha para aceitar o convite.', { exact: false })).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+  await expect(page.getByText('Nenhum e-mail foi enviado por esta ação.', { exact: false })).toBeVisible()
+  expect(state.calls.filter(call => call.path === '/api/invitations')).toHaveLength(0)
+  expect(state.calls.find(call => call.path === '/api/invitation-link')?.body).toEqual({ workspaceId: state.workspaceId, email: 'nova@example.com', role: 'manager', name: 'Nina Convidada' })
+  expect(state.invitationAuthenticated).toBe(true)
+})
+
+test('SMTP failure offers a manual activation link while preserving name email and role', async ({ page }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'])
+  const state = await mountAdministration(page, 'company', { invitationFailure: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Convidar pessoa', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Convide alguém para a equipe' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
+  await dialog.getByLabel('Nome da pessoa', { exact: true }).fill('Nina Convidada')
+  await dialog.getByLabel('E-mail da pessoa').fill('nina@example.com')
+  await dialog.getByLabel('Papel na empresa').selectOption('viewer')
+  await dialog.getByRole('button', { name: 'Enviar convite', exact: true }).click()
+  await expect(dialog.getByRole('alert')).toHaveText(smtpFailureMessage)
+  await expect(dialog.getByLabel('Nome da pessoa', { exact: true })).toHaveValue('Nina Convidada')
+  await expect(dialog.getByLabel('Papel na empresa')).toHaveValue('viewer')
+  await dialog.getByRole('button', { name: 'Copiar link do convite', exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('Link de ativação copiado.')
+  await expect(page.getByText('Convite enviado por e-mail', { exact: true })).toHaveCount(0)
+  const link = await page.getByLabel('Link do convite', { exact: true }).inputValue()
+  expect(new URL(link).searchParams.has('token_hash')).toBe(true)
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(link)
+  expect(state.calls.filter(call => call.path === '/api/invitations')).toHaveLength(1)
+  expect(state.calls.find(call => call.path === '/api/invitation-link')?.body).toEqual({ workspaceId: state.workspaceId, email: 'nina@example.com', role: 'viewer', name: 'Nina Convidada' })
+})
+
+test('an expired invitation is visibly expired and can be replaced with another email invitation', async ({ page }) => {
+  const state = await mountAdministration(page)
+  const expired = page.locator('.ad-invitation-table').getByRole('row').filter({ hasText: 'expired@example.com' })
+  await expect(expired).toContainText('Expirado')
+  await expired.getByRole('button', { name: 'Gerar outro convite para expired@example.com', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('O link anterior deixa de valer.')
+  const renewed = page.locator('.ad-invitation-table').getByRole('row').filter({ hasText: 'expired@example.com' })
+  await expect(renewed).toHaveCount(1)
+  await expect(renewed).toContainText('Pendente')
+  await expect(renewed).not.toContainText('Expirado')
+  expect(state.calls.find(call => call.path === '/api/invitations')?.body).toMatchObject({ workspaceId: state.workspaceId, email: 'expired@example.com', role: 'closer' })
 })

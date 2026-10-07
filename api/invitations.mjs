@@ -42,13 +42,15 @@ async function requestBody(request) {
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) reject(400, 'INVALID_INVITATION', 'Informe a empresa, o e-mail e o perfil do convite.')
   if (Buffer.byteLength(JSON.stringify(body)) > BODY_LIMIT) reject(413, 'BODY_TOO_LARGE', 'Os dados do convite excedem o limite permitido.')
-  if (Object.keys(body).some(key => !['workspaceId', 'email', 'role'].includes(key))) reject(400, 'INVALID_INVITATION', 'O convite contém campos não permitidos.')
+  if (Object.keys(body).some(key => !['workspaceId', 'email', 'role', 'name'].includes(key))) reject(400, 'INVALID_INVITATION', 'O convite contém campos não permitidos.')
   const { workspaceId, role } = body
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   if (typeof workspaceId !== 'string' || !UUID.test(workspaceId) || !EMAIL.test(email) || email.length > 254 || !ROLES.has(role)) {
     reject(400, 'INVALID_INVITATION', 'Informe uma empresa válida, um e-mail válido e um perfil permitido.')
   }
-  return { workspaceId, email, role }
+  const name = body.name === undefined || body.name === null ? null : typeof body.name === 'string' ? body.name.trim() : ''
+  if (name !== null && (name.length < 2 || name.length > 120 || /[\u0000-\u001f\u007f]/.test(name))) reject(400, 'INVALID_INVITATION', 'Informe um nome com 2 a 120 caracteres, sem quebras de linha.')
+  return { workspaceId, email, role, name }
 }
 
 function rpcFailure(error) {
@@ -71,7 +73,7 @@ function deliveryFailure(error) {
 }
 
 /** Dependency injection is used only by tests; production uses the official SDK. */
-export function createInvitationHandler({ env = process.env, createClient = supabaseClient } = {}) {
+export function createInvitationHandler({ env = process.env, createClient = supabaseClient, manualLink = false } = {}) {
   return async function invitations(request, response) {
     response.setHeader('Cache-Control', 'no-store')
     response.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -118,21 +120,55 @@ export function createInvitationHandler({ env = process.env, createClient = supa
 
       // Authorization, tenancy, role and reserved seats are checked under the
       // caller's verified JWT before any privileged Auth operation is created.
-      const prepared = await caller.rpc('invite_member', { p_workspace_id: input.workspaceId, p_email: input.email, p_role: input.role })
+      const prepared = await caller.rpc('invite_member', { p_workspace_id: input.workspaceId, p_email: input.email, p_role: input.role, ...(input.name ? { p_name: input.name } : {}) })
       if (prepared.error) rpcFailure(prepared.error)
       const record = prepared.data
       if (record && UUID.test(record.id || '')) pending = { workspaceId: input.workspaceId, id: record.id }
       if (!pending || !TOKEN.test(record.token || '') || record.email !== input.email || record.role !== input.role || !Number.isFinite(Date.parse(record.expires_at))) {
         reject(502, 'INVITATION_CREATION_FAILED', 'Não foi possível preparar um convite válido. Verifique os convites pendentes e tente novamente.')
       }
-      const invitation = { id: record.id, email: record.email, role: record.role, token: record.token, expires_at: record.expires_at }
+      const invitation = { id: record.id, email: record.email, role: record.role, token: record.token, expires_at: record.expires_at,
+        ...(record.name !== undefined || input.name ? { name: record.name ?? input.name } : {}) }
       const invitationUrl = new URL(appUrl); invitationUrl.searchParams.set('invite', invitation.token)
       const activationUrl = new URL(invitationUrl); activationUrl.searchParams.set('flow', 'activate')
       const mailer = createClient(supabaseUrl, serviceKey, {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, flowType: 'implicit' },
         global: { fetch: boundedFetch },
       })
-      let delivery = await mailer.auth.admin.inviteUserByEmail(input.email, { redirectTo: activationUrl.toString() })
+      if (manualLink) {
+        // Auth's invite generator can also issue credentials for PREEXISTING
+        // unconfirmed users. Only an atomic account creation by this request
+        // permits returning an activation credential to the inviting admin.
+        const created = await mailer.auth.admin.createUser({ email: input.email, email_confirm: false,
+          ...(input.name ? { user_metadata: { display_name: input.name } } : {}) })
+        if (created.error && ['email_exists', 'user_already_exists'].includes(created.error.code)) {
+          const loginUrl = new URL(invitationUrl); loginUrl.searchParams.set('login', '1')
+          pending = null
+          return response.status(201).json({ invitation, url: loginUrl.toString(), manualLink: true, requiresSignIn: true })
+        }
+        if (created.error || !UUID.test(created.data?.user?.id || '')) reject(502, 'MANUAL_LINK_FAILED', 'Não foi possível preparar a ativação de uma nova conta. O convite foi cancelado.')
+        const newUserId = created.data.user.id
+        const verificationType = 'invite', expectedRedirect = activationUrl.toString()
+        const generated = await mailer.auth.admin.generateLink({ type: verificationType, email: input.email,
+          options: { redirectTo: expectedRedirect, ...(input.name ? { data: { display_name: input.name } } : {}) } })
+        if (generated.error) reject(502, 'MANUAL_LINK_FAILED', 'Não foi possível gerar o link de acesso. O convite foi cancelado. Tente novamente.')
+        if (generated.data?.user?.id !== newUserId) reject(502, 'MANUAL_LINK_FAILED', 'Não foi possível confirmar a identidade da nova conta. O convite foi cancelado.')
+        let actionUrl
+        try { actionUrl = new URL(generated.data?.properties?.action_link) } catch { reject(502, 'MANUAL_LINK_FAILED', 'Não recebemos um link de acesso válido. O convite foi cancelado.') }
+        if (actionUrl.protocol !== 'https:' || actionUrl.origin !== projectUrl.origin || actionUrl.username || actionUrl.password
+          || actionUrl.pathname !== '/auth/v1/verify' || actionUrl.searchParams.get('type') !== verificationType
+          || !(actionUrl.searchParams.get('token') || actionUrl.searchParams.get('token_hash')) || actionUrl.hash
+          || actionUrl.searchParams.has('access_token') || actionUrl.searchParams.has('refresh_token')) {
+          reject(502, 'MANUAL_LINK_FAILED', 'O provedor não retornou um link de acesso seguro. O convite foi cancelado.')
+        }
+        if (actionUrl.searchParams.get('redirect_to') !== expectedRedirect) {
+          reject(503, 'AUTH_REDIRECT_NOT_ALLOWED', 'O link não retorna ao CRM. Configure o endereço e os redirecionamentos autorizados no Supabase antes de gerar outro convite.')
+        }
+        pending = null
+        // The link is shared by the administrator; no SMTP request is made.
+        return response.status(201).json({ invitation, url: actionUrl.toString(), manualLink: true })
+      }
+      let delivery = await mailer.auth.admin.inviteUserByEmail(input.email, { redirectTo: activationUrl.toString(), ...(input.name ? { data: { display_name: input.name } } : {}) })
       if (delivery.error && ['email_exists', 'user_already_exists'].includes(delivery.error.code)) {
         // Existing users receive a login link; no new account/password is created.
         delivery = await mailer.auth.signInWithOtp({ email: input.email, options: { shouldCreateUser: false, emailRedirectTo: invitationUrl.toString() } })
@@ -151,7 +187,9 @@ export function createInvitationHandler({ env = process.env, createClient = supa
           // a concurrent action. Never revoke a newer invitation by email.
           if (canceled.error && canceled.error.code !== 'P0002') throw new Error('Cancellation failed')
         } catch {
-          error = new RequestError(503, 'INVITATION_ROLLBACK_FAILED', 'Não foi possível enviar o e-mail nem cancelar este convite. Revogue o convite pendente antes de tentar novamente.')
+          error = new RequestError(503, 'INVITATION_ROLLBACK_FAILED', manualLink
+            ? 'Não foi possível gerar o link nem cancelar este convite. Revogue o convite pendente antes de tentar novamente.'
+            : 'Não foi possível enviar o e-mail nem cancelar este convite. Revogue o convite pendente antes de tentar novamente.')
         }
       }
       return response.status(error.status).json({ error: { code: error.code, message: error.message } })

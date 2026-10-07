@@ -26,11 +26,19 @@ fi
 docker exec "$TASK_DB_CONTAINER" createdb -U postgres "$TASK_DB_NAME"
 psql_local() { docker exec -i "$TASK_DB_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$TASK_DB_NAME" "$@"; }
 psql_local < "$TASK_REPO_ROOT/supabase/tests/auth-stub.sql" >/dev/null
-psql_local < "$TASK_REPO_ROOT/supabase/migrations/202610070001_closer_os.sql" >/dev/null
+for task_migration in "$TASK_REPO_ROOT"/supabase/migrations/*.sql; do
+  psql_local < "$task_migration" >/dev/null
+done
 if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.log" 2>&1; then
   cat "$TASK_LOG_DIR/rls.log" >&2; exit 1
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
+for task_assertions in self-service invitation-details; do
+  if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
+    cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
+  fi
+  sed -n '/assertions passed:/p' "$TASK_LOG_DIR/$task_assertions.log"
+done
 # Both transactions target the same last available seat. The workspace lock must serialize them.
 TASK_RACE_ID="$(psql_local -Atc "select test.value('race')")"
 (
@@ -108,4 +116,27 @@ if [ "$TASK_FIRST_STATUS" -ne 0 ]; then TASK_REJECT_LOG="$TASK_LOG_DIR/admin-a.l
 if ! grep -q 'Acesso administrativo não autorizado' "$TASK_REJECT_LOG"; then cat "$TASK_REJECT_LOG" >&2; exit 1; fi
 psql_local -Atc "select test.ok((select count(*)=2 from public.memberships where workspace_id=test.value('admin_race')::uuid and is_active),'concurrent admin revocation preserves owner and authorized actor');" >/dev/null
 echo 'Concurrent administrator-revocation test passed.'
+# Two initial registrations for the same verified account must return one company and one trial.
+create_self_once() {
+  psql_local -At <<'SQL'
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub',test.value('self_race'),true);
+select public.create_own_workspace('Empresa concorrente','Cliente concorrente',true);
+select pg_sleep(1);
+commit;
+SQL
+}
+create_self_once > "$TASK_LOG_DIR/self-a.log" 2>&1 & TASK_FIRST_PID=$!
+create_self_once > "$TASK_LOG_DIR/self-b.log" 2>&1 & TASK_SECOND_PID=$!
+TASK_FIRST_STATUS=0; wait "$TASK_FIRST_PID" || TASK_FIRST_STATUS=$?
+TASK_SECOND_STATUS=0; wait "$TASK_SECOND_PID" || TASK_SECOND_STATUS=$?
+if [ "$TASK_FIRST_STATUS" -ne 0 ] || [ "$TASK_SECOND_STATUS" -ne 0 ]; then cat "$TASK_LOG_DIR/self-a.log" "$TASK_LOG_DIR/self-b.log" >&2; exit 1; fi
+psql_local -Atc "select test.ok((select count(*)=1 from private.self_service_registrations where user_id=test.value('self_race')::uuid),'parallel public registrations share one allowance');
+select test.ok((select count(*)=1 from public.workspaces where owner_id=test.value('self_race')::uuid),'parallel public registrations share one company');
+select test.ok((select count(*)=1 from public.memberships where user_id=test.value('self_race')::uuid and role='admin' and is_active),'parallel public registrations create one administrator membership');
+select test.ok((select count(*)=1 from public.subscriptions s join private.self_service_registrations r on r.workspace_id=s.workspace_id where r.user_id=test.value('self_race')::uuid and s.status='trial' and s.seat_limit=1),'parallel public registrations create one trial');
+select test.ok((select count(*)=1 from public.audit_logs where actor_id=test.value('self_race')::uuid and action='workspace.self_service_created'),'parallel public registrations audit creation once');
+select test.ok((select count(*)=2 from public.policy_acceptances where user_id=test.value('self_race')::uuid),'parallel public registrations record two policy documents once');" >/dev/null
+echo 'Concurrent public-registration test passed.'
 psql_local -Atc "select 'Total database assertions: ' || count(*) from test.results"

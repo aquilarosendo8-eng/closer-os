@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { parseArgs } from 'node:util'
 import { createHash } from 'node:crypto'
 import http from 'node:http'
@@ -96,21 +96,47 @@ async function main() {
   if (!settings.ok) fail(`A autenticação não respondeu corretamente (HTTP ${settings.status}).`)
   console.log('Supabase Auth: conexão HTTPS verificada.')
   const query = await openDatabase()
+  // Serialize concurrent builders on the persistent PostgreSQL connection.
+  // The lock is released automatically when that connection closes.
+  if (database) await query("select pg_advisory_lock(hashtext('closer_os_schema_migrations'))")
   const schema = await query("select to_regclass('private.schema_migrations') is not null as tracked, to_regclass('public.workspaces') is not null as installed")
-  const version = '202610070001_closer_os'
-  const migration = await readFile(new URL('../supabase/migrations/202610070001_closer_os.sql', import.meta.url), 'utf8')
-  const checksum = createHash('sha256').update(migration).digest('hex')
-  if (schema[0]?.tracked) {
-    const recorded = await query(`select checksum from private.schema_migrations where version=${sqlString(version)}`)
-    if (recorded[0]?.checksum !== checksum) fail('A migração instalada diverge deste código. Prepare uma nova migração; o script não sobrescreve o banco.')
-    console.log('Schema: versão e checksum conferidos; nenhuma migração repetida.')
-  } else if (values['check-only']) fail('O schema do Closer OS ainda não foi instalado por este procedimento.')
-  else {
+  const directory = new URL('../supabase/migrations/', import.meta.url)
+  const filenames = (await readdir(directory)).filter(name => /^\d{12}_[a-z0-9_]+\.sql$/.test(name)).sort()
+  if (filenames[0] !== '202610070001_closer_os.sql') fail('A migração inicial do Closer OS não foi encontrada.')
+  const migrations = await Promise.all(filenames.map(async filename => {
+    const migration = await readFile(new URL(filename, directory), 'utf8')
+    return { version: filename.slice(0, -4), migration, checksum: createHash('sha256').update(migration).digest('hex') }
+  }))
+  let tracked = Boolean(schema[0]?.tracked)
+  if (!tracked) {
+    if (values['check-only']) fail('O schema do Closer OS ainda não foi instalado por este procedimento.')
     if (schema[0]?.installed) fail('Já existe uma tabela workspaces sem registro de migração. Revise o projeto antes de prosseguir; nenhuma tabela foi sobrescrita.')
-    const tracking = `create table private.schema_migrations(version text primary key, checksum text not null, applied_at timestamptz not null default now());\ninsert into private.schema_migrations(version,checksum) values(${sqlString(version)},${sqlString(checksum)});`
-    await query(migration.replace(/commit;\s*$/i, `${tracking}\ncommit;`))
-    console.log('Schema: migração instalada em transação, com controle de versão.')
   }
+  const recorded = tracked ? await query('select version, checksum from private.schema_migrations') : []
+  const versions = new Set(migrations.map(row => row.version))
+  if (recorded.some(row => !versions.has(row.version))) fail('O banco contém uma migração ausente deste checkout. Revise a versão antes de publicar.')
+  if (tracked && !recorded.some(row => row.version === '202610070001_closer_os')) fail('O registro da migração inicial está ausente. Revise o banco antes de publicar.')
+  // Validate every applied checksum before installing any pending migration.
+  let pendingSeen = false
+  for (const { version, checksum } of migrations) {
+    const existing = recorded.find(row => row.version === version)
+    if (existing) {
+      if (existing.checksum !== checksum) fail('A migração instalada diverge deste código. Prepare uma nova migração; o script não sobrescreve o banco.')
+      if (pendingSeen) fail('O registro de migrações possui uma lacuna. Revise o banco antes de publicar.')
+    } else pendingSeen = true
+  }
+  let applied = 0
+  for (const { version, migration, checksum } of migrations) {
+    if (recorded.some(row => row.version === version)) continue
+    if (values['check-only']) fail(`Existe uma migração pendente: ${version}. A verificação não altera o banco.`)
+    if (!/commit;\s*$/i.test(migration)) fail(`A migração ${version} precisa terminar com COMMIT para registrar seu checksum na mesma transação.`)
+    const table = tracked ? '' : 'create table private.schema_migrations(version text primary key, checksum text not null, applied_at timestamptz not null default now());\n'
+    const tracking = `${table}insert into private.schema_migrations(version,checksum) values(${sqlString(version)},${sqlString(checksum)});`
+    await query(migration.replace(/commit;\s*$/i, `${tracking}\ncommit;`))
+    tracked = true; applied += 1
+    console.log(`Schema: ${version} instalada em transação, com controle de versão.`)
+  }
+  console.log(`Schema: ${filenames.length} versões e checksums conferidos; ${applied} migrações aplicadas.`)
   const checks = await query("select tablename, rowsecurity from pg_tables where schemaname='public' and tablename in ('profiles','platform_admins','workspaces','memberships','leads','subscriptions','invitations','workspace_settings','audit_logs','policy_acceptances','bootstrap_settings')")
   if (checks.length !== 11 || checks.some(row => !row.rowsecurity)) fail('As tabelas esperadas ou as regras RLS não estão completas.')
   console.log('Autorização: 11 tabelas com RLS ativada.')
