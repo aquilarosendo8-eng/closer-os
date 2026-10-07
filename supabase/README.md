@@ -5,7 +5,7 @@ Este diretório contém a camada de contas, isolamento de empresas, convites e a
 ## Instalação em um projeto Supabase
 
 1. Crie ou selecione um projeto Supabase sob a conta do proprietário do negócio. Conecte-o à Vercel pela integração oficial, ou configure as variáveis públicas indicadas no `.env.example`. Esta migration pressupõe o ambiente Supabase com os papéis `anon`, `authenticated`, `service_role`, a tabela `auth.users` e a função `auth.uid()`; o arquivo `tests/auth-stub.sql` é exclusivo do teste local.
-2. Aplique **uma vez** `migrations/202610070001_closer_os.sql`, por `supabase db push` em um projeto vinculado ou pelo SQL Editor. A migration é transacional: uma falha não deixa metade das tabelas instalada. Ela requer `pgcrypto` no schema `extensions`, como no provisionamento padrão do Supabase.
+2. Aplique as migrations pendentes **uma vez e em ordem**: `202610070001_closer_os.sql`, `202610070002_self_service_signup.sql` e `202610070003_invitation_details.sql`, por `supabase db push` em um projeto vinculado ou pelo SQL Editor. Cada migration é transacional; nunca edite uma versão já aplicada. Ela requer `pgcrypto` no schema `extensions`, como no provisionamento padrão do Supabase.
 3. No SQL Editor, defina uma allowlist com o e-mail confirmado do proprietário inicial. O exemplo usa um endereço fictício que deve ser substituído antes de executar:
 
    ```sql
@@ -44,10 +44,11 @@ Os parâmetros abaixo usam os nomes exatos esperados por `supabase.rpc`. Exceto 
 | `bootstrap_owner` | nenhum | `boolean`; instalação inicial por e-mail confirmado na allowlist, ou chamada idempotente pelo operador já existente. |
 | `setup_owner` | `p_name?` | `boolean`; mesma autorização e atualização opcional do nome. |
 | `create_workspace` | `p_name`, `p_owner_name?` | UUID; somente plataforma. Cria empresa, configurações e teste individual de um assento. Não cria vínculo do operador. |
-| `invite_member` | `p_workspace_id`, `p_email`, `p_role?` | JSON `{id,email,role,token,expires_at}`; administrador da empresa ou plataforma. Reserva um assento. O primeiro convite deve ser `admin`. Reenviar revoga o token anterior, sem reservar dois assentos. |
-| `list_invitation_preview` | `p_token` | JSON `{email,workspace_name,role,expires_at}` ou `null`; anônimos e autenticados, apenas por token válido. Não enumera convites. |
+| `create_own_workspace` | `p_name`, `p_display_name`, `p_accept_terms` | UUID; usuário autenticado com e-mail confirmado e aceite explícito. Cria sua empresa individual privada uma vez, com teste de 14 dias e sem administração da plataforma. |
+| `invite_member` | `p_workspace_id`, `p_email`, `p_role?`, `p_name?` | JSON `{id,name,email,role,token,expires_at}`; administrador da empresa ou plataforma. Reserva um assento. O primeiro convite deve ser `admin`. Reenviar revoga o token anterior, sem reservar dois assentos. |
+| `list_invitation_preview` | `p_token` | JSON `{name,email,workspace_name,role,expires_at}` ou `null`; anônimos e autenticados, apenas por token válido. Não enumera convites. |
 | `accept_invitation` | `p_token` | UUID da empresa; aceita uma única vez, somente pelo usuário com o e-mail correspondente confirmado. Verifica expiração, revogação, assinatura e limite de assentos. O primeiro administrador aceito vira proprietário. |
-| `list_invitations` | `p_workspace_id` | Lista JSON de convites sem token/hash; administrador da empresa ou plataforma. |
+| `list_invitations` | `p_workspace_id` | Lista JSON com nome, aceite e estados pending/activated/expired/revoked/deactivated, sem token/hash; administrador da empresa ou plataforma. |
 | `revoke_invitation` | `p_workspace_id`, `p_invitation_id` | `void`; administrador da empresa ou plataforma; libera a reserva de um convite pendente. |
 | `list_members` | `p_workspace_id` | Lista JSON `{user_id,email,display_name,role,is_active}`; administrador, gestor ou plataforma. |
 | `update_member` | `p_workspace_id`, `p_user_id`, `p_role`, `p_is_active` | `void`; administrador da empresa ou plataforma. Protege o proprietário/último administrador e verifica capacidade antes de reativar. |
@@ -81,6 +82,6 @@ Execute na raiz do repositório:
 bash scripts/test-database.sh
 ```
 
-O script usa PostgreSQL 17 em Docker, sem porta publicada e sem credenciais de produção. Reutiliza `closer-os-db-tests` quando disponível, ou cria um container temporário. Em ambos os casos cria **um banco novo com nome exclusivo**, aplica o stub de Auth, a migration e testes, e exclui somente esse banco ao terminar. Não consulta variáveis de conexão da aplicação nem acessa o Supabase real. Um container que já existia é preservado.
+O script usa PostgreSQL 17 em Docker, sem porta publicada e sem credenciais de produção. Reutiliza `closer-os-db-tests` quando disponível, ou cria um container temporário. Em ambos os casos cria **um banco novo com nome exclusivo**, aplica o stub de Auth, as migrations e testes, e exclui somente esse banco ao terminar. Não consulta variáveis de conexão da aplicação nem acessa o Supabase real. Um container que já existia é preservado.
 
-Os testes executam consultas reais como `anon` e `authenticated`, não apenas procuram textos de policies. Incluem isolamento de empresas, CRUD por papel, proibição de elevação de privilégio e e-mail falso, payloads inválidos, importação atômica, limites e reenvio de convites, verificação de e-mail, expiração, exportação após bloqueio, metadados legais, purga, cascatas, propriedade, ACLs de funções/colunas/sequências e `search_path` das funções privilegiadas. Três testes usam transações paralelas para disputar o último assento, aceitar o mesmo convite e revogar outro administrador. Resultado atual: **127 verificações**, incluindo as três verificações concorrentes.
+Os testes executam consultas reais como `anon` e `authenticated`, não apenas procuram textos de policies. Incluem isolamento de empresas, CRUD por papel, proibição de elevação de privilégio e e-mail falso, payloads inválidos, importação atômica, limites e reenvio de convites, verificação de e-mail, expiração, exportação após bloqueio, metadados legais, purga, cascatas, propriedade, ACLs de funções/colunas/sequências e `search_path` das funções privilegiadas. Quatro cenários usam transações paralelas para disputar o último assento, aceitar o mesmo convite, revogar outro administrador e criar a mesma empresa própria. Resultado atual: **233 verificações**, incluindo nomes, estados de convite, cadastro próprio, idempotência, isolamento e concorrência.

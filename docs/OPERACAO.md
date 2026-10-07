@@ -8,7 +8,7 @@ Este roteiro acompanha o código do repositório. A existência do código de nu
 - **Dados locais da versão anterior:** leads e configurações existentes continuam no armazenamento do navegador. Quando a configuração de nuvem está ausente, a tela de preparação oferece download explícito de backup. Com a nuvem configurada, a tela de login não lê nem exibe os dados legados; a migração ocorre pela importação após autenticação, para a empresa selecionada. Os originais não são enviados automaticamente nem removidos.
 - **Nuvem:** a aplicação usa Supabase Auth e PostgreSQL. Cada cliente trabalha em um workspace, com associação e papel próprios. A autorização dos dados deve ser aplicada pelas funções e políticas RLS do banco, além das restrições da interface.
 
-O frontend é uma SPA estática construída com Vite. A Vercel publica os arquivos de `dist`; o banco e a autenticação ficam no Supabase.
+O frontend é uma SPA construída com Vite. A Vercel publica os arquivos de `dist` e hospeda a API de envio de convites; o banco e a autenticação ficam no Supabase. A API usa a credencial administrativa somente no servidor e verifica a autorização de quem está enviando.
 
 ## Preparar o ambiente
 
@@ -17,7 +17,7 @@ O frontend é uma SPA estática construída com Vite. A Vercel publica os arquiv
 3. Provisione a migration versionada antes de liberar o frontend conectado, pelo procedimento abaixo. Confira o projeto de destino; uma conexão de integração não instala o schema automaticamente.
 4. Confira no banco as tabelas, funções e políticas criadas. Teste a autorização com contas de clientes diferentes; acessar a interface como administrador não valida o isolamento.
 5. Configure a autenticação por email e senha no Supabase Auth. Mantenha a confirmação de e-mail obrigatória e configure o mínimo de senha do provedor para 12 caracteres, compatível com a interface. O cadastro de e-mail é necessário ao fluxo de convite; uma conta sem vínculo autorizado não acessa o CRM. Configure as URLs conforme a seção abaixo.
-6. Configure a entrega de emails de confirmação e recuperação no Supabase quando esses fluxos estiverem habilitados. Os limites e o envio dependem do serviço de email configurado; os convites de workspace são links copiados na aplicação e enviados manualmente pelo operador.
+6. Configure a entrega de e-mails de convite, confirmação e recuperação no Supabase. A aplicação solicita o envio automaticamente ao gerar o convite; copiar o link continua disponível como alternativa. Os limites, remetente e entrega dependem do serviço de e-mail configurado.
 
 As credenciais de acesso ao projeto, ao banco e à hospedagem pertencem ao operador. Não são necessárias chaves administrativas de banco no navegador.
 
@@ -37,11 +37,11 @@ O endereço acima é ilustrativo: use o e-mail real do dono, obtido e configurad
 
 Na Vercel, `npm run build:cloud` executa o provisionamento antes de `npm run build`, usando as variáveis protegidas do builder. `CLOSER_OWNER_EMAIL` e `CLOSER_APP_URL` identificam o proprietário e o domínio; são configurações do servidor, sem prefixo `VITE_`. A integração fornece as credenciais de conexão/autenticação necessárias. **O build normal não passa `--invite-owner` e não reenvia e-mail a cada publicação.** O envio inicial de ativação é uma etapa explícita, após conferir as URLs do Auth e a entrega de e-mail.
 
-O schema do projeto conectado foi instalado por esse procedimento no builder da Vercel. Instalações seguintes conferem o checksum em `private.schema_migrations` e as regras RLS, sem repetir a migration. Falhas de provisionamento impedem a publicação da nova versão. Não edite uma migration já aplicada; mudanças de schema exigem nova migration e evolução controlada do provisionamento. Reverter o frontend não reverte alterações do banco.
+O schema do projeto conectado foi instalado por esse procedimento no builder da Vercel. Instalações seguintes conferem todos os checksums em `private.schema_migrations` e as regras RLS. O script instala migrations pendentes em ordem, cada uma em transação com seu registro. Recusa checksums divergentes, lacunas e versões ausentes do checkout; builders PostgreSQL são serializados por advisory lock. Falhas de provisionamento impedem a publicação da nova versão. Não edite uma migration já aplicada; mudanças de schema exigem nova migration e evolução controlada do provisionamento. Reverter o frontend não reverte alterações do banco.
 
 O script verifica a cadeia e o nome do servidor PostgreSQL. Usa as raízes do sistema e o certificado público Supabase Root 2021; a origem e a impressão digital estão em [scripts/certs/README.md](../scripts/certs/README.md). `CLOSER_DB_CA_FILE` permite uma substituição validada quando o fornecedor rotacionar o certificado. Se um ambiente de nuvem bloquear o protocolo PostgreSQL, execute o provisionamento no builder autorizado ou use a API de administração com credencial protegida. Não desative a verificação TLS para contornar falhas de conexão.
 
-Ao acessar com e-mail confirmado, `setup_owner` verifica a allowlist diretamente no banco e configura o primeiro administrador da plataforma. O bootstrap é fechado ao concluir. O proprietário da plataforma pode criar empresas, mas não recebe vínculo ou acesso automático aos leads delas. Para usar seu próprio CRM, deve criar sua empresa e aceitar um convite de administrador para ela.
+Ao acessar com e-mail confirmado, `setup_owner` verifica a allowlist diretamente no banco e configura o primeiro administrador da plataforma. O bootstrap é fechado ao concluir. O proprietário da plataforma pode criar empresas, mas não recebe vínculo ou acesso automático aos leads delas. Para usar seu próprio CRM, pode concluir o cadastro da própria empresa por `create_own_workspace` ou aceitar um convite de administrador para uma empresa criada pela operação.
 
 Uma verificação posterior, sem alteração de contas ou dados:
 
@@ -59,12 +59,24 @@ No dashboard do projeto Supabase, em **Authentication → URL Configuration**, u
 - `/?flow=activate`, usado pela ativação inicial.
 - `/?flow=recovery`, usado pela recuperação de senha.
 - `/?invite=…`, usado pela confirmação de e-mail para um convite de empresa.
+- `/?signup=1`, usado pela confirmação do cadastro aberto.
+- Recuperações em convite preservam `invite` e `login=1` junto de `flow=recovery`.
 
 Uma regra `https://closer-os-rho-three.vercel.app/**`, quando necessária ao formato de redirecionamento aceito pelo Supabase, deve ficar limitada a esse domínio. Não autorize todos os domínios Vercel. Adicione `http://localhost:5173/**` somente no ambiente de desenvolvimento e o domínio específico de homologação no projeto correspondente. Ao adotar domínio próprio, atualize Site URL, redirecionamentos e `CLOSER_APP_URL`, publique e teste os links de e-mail novamente.
 
 Configure o remetente e SMTP conforme [SMTP do Supabase](https://supabase.com/docs/guides/auth/auth-smtp), incluindo a autenticação de domínio exigida pelo fornecedor. O serviço padrão possui limites e restrições de destinatários; não presuma que atende todos os clientes. Teste confirmação, ativação e recuperação na caixa de entrada do destinatário.
 
 Convites iniciais enviados pelo Supabase Auth podem retornar tokens de sessão no fragmento da URL. A aplicação valida esse callback de convite/recuperação e permite definir a senha, inclusive ao abrir o link em outro navegador. Um parâmetro `flow` sozinho não cria sessão nem autoriza alteração de senha. A confirmação do cadastro iniciado por um convite de empresa usa PKCE: nesse caso, abra o link no mesmo navegador usado para iniciar a criação da conta.
+
+### Cadastro próprio e convite manual
+
+O cadastro público em `?signup=1` usa Supabase Auth com PKCE. Depois da confirmação, a pessoa informa/confirma os dados e o aceite para `create_own_workspace`. A RPC verifica e-mail confirmado, cria empresa com owner/admin atual e teste individual de 14 dias, e registra os documentos aceitos. Um registro privado e trava por perfil tornam a criação idempotente e impedem reiniciar o teste após excluir a empresa. Metadados de cadastro não atribuem papéis nem administração da plataforma.
+
+Copiar link usa `/api/invitation-link`. Depois da autorização do convidante e reserva de assento pela RPC, a API tenta criar uma identidade Auth sem senha e sem confirmação, de forma atômica. Somente uma identidade nova criada nessa chamada pode receber o link Auth de ativação; seu UUID é conferido na resposta do provedor. Qualquer conta existente, confirmada ou não, recebe apenas o convite CRM com `login=1` e usa a própria senha. Tokens de login de contas existentes nunca são entregues ao convidante.
+
+Gerar link ou reenviar cria um novo convite e invalida o anterior; o Admin informa essa substituição. O token CRM dura 7 dias, mas o link Auth pode expirar antes conforme o provedor. A página explica a expiração e orienta pedir outro ao administrador; o Admin oferece reenvio ou geração de novo link. Recuperar senha a partir do convite mantém seu contexto e retorna à empresa depois do aceite.
+
+Se criar a nova identidade funciona e gerar o link falha, a API cancela apenas o convite CRM. A conta não é apagada automaticamente, pois pode ter avançado em outro fluxo. O destinatário precisará da ativação/recuperação por e-mail; o fallback manual não elimina a necessidade de SMTP nesses casos.
 
 ## Configuração do frontend
 
@@ -109,7 +121,7 @@ Esse script exige chave pública e chave administrativa do servidor em arquivo p
 
 1. Importe `aquilarosendo8-eng/closer-os`, mantendo a raiz do repositório.
 2. Configure Node.js 24, instalação `npm ci`, build `npm run build:cloud` e saída `dist`, conforme `vercel.json`. O build de produção exige as configurações protegidas do banco e do proprietário; `npm run build` isoladamente continua disponível para testar apenas o frontend local.
-3. Configure as variáveis públicas e de provisionamento no ambiente correto e publique. As credenciais administrativas são usadas somente pelo processo de provisionamento no servidor; não são incorporadas no JavaScript público.
+3. Configure as variáveis públicas e de provisionamento no ambiente correto e publique. As credenciais administrativas são usadas pelo provisionamento e pelas APIs de convite no servidor, após a autorização da requisição; não são incorporadas no JavaScript público.
 4. Adicione o domínio publicado às URLs permitidas do Supabase Auth. Teste links de recuperação e convite no domínio final, inclusive ao abri-los diretamente.
 5. Guarde o identificador do deploy e a versão de migrações usada. Uma reversão de frontend não desfaz migrações nem alterações dos dados.
 
@@ -130,7 +142,15 @@ Papéis disponíveis:
 
 Consulte as migrações para os limites efetivos de cada papel e para quem pode atribuir leads a outros membros. O administrador da plataforma consulta metadados comerciais e gerencia assinaturas; não recebe acesso aos leads de um cliente apenas por esse papel. Para acesso ao CRM, é necessária uma associação autorizada ao workspace.
 
-Ao convidar alguém, confira email, papel e workspace. Copie o link produzido pela aplicação e entregue ao destinatário por um canal adequado. O token do convite é apresentado apenas na criação; o banco armazena seu hash. Se perder o link, revogue e crie outro convite. A validade padrão é de sete dias. O CRM não dispara email de convite automaticamente. O aceite exige conta autenticada com o email confirmado correspondente, convite válido e assento disponível; um convite não equivale a uma associação ativa.
+Ao convidar alguém, confira e-mail, papel e empresa. O sistema registra o convite e solicita o envio por e-mail ao Supabase Auth pela API do servidor. Para uma pessoa nova, o e-mail de ativação permite definir a própria senha; para uma conta já existente, o provedor envia um link de acesso ao convite. Copiar o link continua sendo uma opção adicional. Não compartilhe a mensagem nem o link com terceiros.
+
+O token de convite da empresa é apresentado apenas na criação; o banco armazena seu hash. A validade padrão é de sete dias. Regenerar um convite para o mesmo e-mail revoga o anterior e mantém uma única reserva de assento. O aceite exige sessão autenticada com o e-mail confirmado correspondente, convite válido e assento disponível; receber o e-mail não equivale a uma associação ativa.
+
+Confira o resultado do envio na interface. Uma falha de SMTP não é apresentada como sucesso. A opção independente Copiar link do convite usa outra chamada protegida do backend e não envia e-mail; pode ser usada mesmo após falha de envio. A aceitação pelo provedor não garante recebimento na caixa de entrada. Se o envio for recusado por limite ou destinatário, confira SMTP, remetente e URLs do Auth antes de reenviar. Gmail SMTP aceita host smtp.gmail.com, porta 465, usuário igual ao remetente e senha de app do Google; não use a senha normal da conta. A senha fica no Supabase, não nas variáveis públicas da Vercel. Não exponha a chave administrativa nem defina uma senha em nome do destinatário para contornar o problema.
+
+Em caso de falha, a API tenta revogar somente o convite recém-criado, pelo ID correspondente, liberando sua reserva de assento sem revogar outro convite mais recente. Se essa limpeza também falhar, a interface informa que é necessário revogar o convite pendente antes de tentar novamente. Atualize a lista e confira o estado antes de repetir.
+
+Se o erro ocorrer ao criar uma empresa e enviar seu primeiro convite, a empresa já criada é preservada. A interface abre essa empresa e prepara o reenvio ao administrador: repita o convite ali, em vez de criar outra empresa. As mensagens são apresentadas em português, incluindo recusa de permissão, limite de assentos, limite de envio e indisponibilidade do serviço.
 
 Revogue convites incorretos, desative membros que saíram da equipe e revise periodicamente os acessos. O limite de assentos considera membros ativos e convites ainda válidos, não aceitos e não revogados. O banco impede reduzir o limite abaixo dessa ocupação.
 

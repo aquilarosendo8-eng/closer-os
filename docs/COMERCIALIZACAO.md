@@ -25,9 +25,15 @@ O modelo contempla planos `individual` e `team`. A assinatura registra limite de
 | Suspensão/cancelamento | Condições, data de corte, exportação e retenção de dados. |
 | Cobrança | Meio de pagamento externo, emissão fiscal e responsável pela confirmação. |
 
-O operador da plataforma cria o workspace e atualiza manualmente a assinatura. Os estados são `trial`, `active`, `past_due`, `suspended` e `cancelled` tanto na interface quanto no banco. O banco também admite `expired`. `active`/`trial` dentro do prazo aplicável liberam o CRM; atraso, suspensão, cancelamento e vencimento bloqueiam leitura e edição de leads. Um plano ativo sem término de período não expira por data. O administrador do cliente preserva a exportação e a exclusão de sua empresa pelas operações autorizadas, mesmo após bloqueio do CRM. Mantenha as condições contratuais consistentes com essas regras.
+O operador da plataforma pode criar o workspace, ou o cliente pode criar sua própria empresa pelo cadastro aberto. O operador atualiza manualmente a assinatura. Os estados são `trial`, `active`, `past_due`, `suspended` e `cancelled` tanto na interface quanto no banco. O banco também admite `expired`. `active`/`trial` dentro do prazo aplicável liberam o CRM; atraso, suspensão, cancelamento e vencimento bloqueiam leitura e edição de leads. Um plano ativo sem término de período não expira por data. O administrador do cliente preserva a exportação e a exclusão de sua empresa pelas operações autorizadas, mesmo após bloqueio do CRM. Mantenha as condições contratuais consistentes com essas regras.
 
 Não existe checkout, cobrança recorrente por cartão, webhook financeiro ou integração de pagamento ativa nesta versão. A alteração de status não comprova recebimento. Um pagamento realizado fora do CRM só altera a assinatura quando o operador o confirma e registra a atualização.
+
+## Cadastro pelo link público
+
+Divulgue **https://closer-os-rho-three.vercel.app/?signup=1** para cadastro e `?demo=1` para demonstração. O cliente informa nome, empresa, e-mail, senha e aceite; confirma o e-mail e conclui a criação da empresa. Será administrador apenas dessa empresa, com teste individual de 14 dias e um assento. O cadastro não concede administração da plataforma. Recarregar ou repetir a criação não duplica a empresa; excluí-la não reinicia o teste.
+
+A entrega das confirmações exige SMTP funcionando. Para contratar ou ampliar o plano, o cliente segue o processo comercial do operador.
 
 ## Primeiro cliente
 
@@ -35,7 +41,7 @@ Não existe checkout, cobrança recorrente por cartão, webhook financeiro ou in
 2. Preencha e revise a política de privacidade, condições de uso, contrato, preços e procedimento de cancelamento. [PRIVACIDADE.md](PRIVACIDADE.md) e [TERMOS.md](TERMOS.md) contêm campos pendentes; os documentos da interface também são provisórios. Não publique os modelos como documentos finais.
 3. Prepare homologação e produção seguindo [OPERACAO.md](OPERACAO.md). Verifique autenticação, separação de workspaces, papéis, assentos e assinatura com contas de teste.
 4. Confirme com o cliente o nome da empresa, o administrador e o plano. Crie o workspace pela administração da plataforma.
-5. Copie o link de convite e envie-o manualmente ao destinatário. O CRM não envia convites de workspace por email automaticamente. A pessoa nova define uma senha com pelo menos 12 caracteres, confirma o e-mail pelo Supabase Auth e aceita o convite. Uma conta existente deve entrar com o e-mail correspondente. Oriente-a a conferir a empresa recebida.
+5. Gere o convite do administrador: o sistema solicita o envio por e-mail ao Supabase Auth. Uma pessoa nova recebe o fluxo de ativação e define senha com pelo menos 12 caracteres; uma conta existente recebe um link de acesso ao convite. O aceite exige o e-mail confirmado correspondente. Copiar link é a opção secundária para WhatsApp, inclusive após falha SMTP: só gera ativação quando a própria chamada cria uma identidade Auth nova; contas preexistentes precisam da autenticação do destinatário. Uma falha parcial pode deixar a identidade criada sem senha e exigir ativação/recuperação por e-mail. O novo convite invalida o anterior. Se o envio falhar após a criação da empresa, reenvie o convite na empresa existente; não cadastre o cliente novamente. Confira o resultado e oriente o destinatário a conferir a empresa recebida.
 6. Registre o plano contratado, limite de assentos, status e término de período. Guarde contrato, comprovante financeiro e informações fiscais no sistema externo escolhido para essa finalidade.
 7. Mostre ao cliente o cadastro de lead, encerramento de venda, avaliação de call e exportação. Explique os denominadores das taxas do dashboard e a natureza da comissão projetada.
 8. Teste o uso com as funções da equipe e apresente os canais de suporte, backup, privacidade e cancelamento.
@@ -60,9 +66,9 @@ Não existe checkout, cobrança recorrente por cartão, webhook financeiro ou in
 
 Recursos implementados no repositório:
 
-- [x] Login, alteração/recuperação de senha, confirmação de e-mail e acesso por convite.
+- [x] Login, cadastro aberto, criação da própria empresa, recuperação de senha e acesso por convite.
 - [x] Empresas isoladas, papéis, distribuição de leads e bloqueio de acesso no banco.
-- [x] Convites revogáveis, desativação, limite de assentos e proteção do proprietário/último administrador.
+- [x] Convites por e-mail pelo servidor, cópia adicional do link, revogação, desativação, limite de assentos e proteção do proprietário/último administrador.
 - [x] Administração de clientes e planos com cobrança manual, teste e vencimento.
 - [x] Exportação, importação e migração explícita de leads locais.
 - [x] Auditoria administrativa, contato/retenção por empresa, transferência de responsabilidade e exclusão confirmada.

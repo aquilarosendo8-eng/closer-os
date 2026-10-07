@@ -49,7 +49,7 @@ Os dados são tratados pelos fornecedores efetivamente necessários para hospeda
 
 O papel de administrador da plataforma permite gerenciar clientes e acessos, mas não concede, por si só, leitura ou exportação de leads. O acesso ao CRM depende de vínculo autorizado à empresa. Documente [FINALIDADES E LIMITES EFETIVOS DE SUPORTE/OPERAÇÃO, AUTORIZAÇÃO E RESPONSÁVEIS]. Pedidos legais serão tratados conforme [PROCEDIMENTO]. Declare de forma fiel se existem outros compartilhamentos, ferramentas de monitoramento ou usos comerciais: [INFORMAÇÕES PENDENTES].
 
-O CRM não realiza disparos automáticos de convites de workspace; o responsável copia e envia o link por um canal externo de sua escolha. Esse envio pode envolver o provedor do canal escolhido. Não inclua dados de leads no convite.
+Ao criar um convite de empresa, o CRM solicita o envio automático de e-mail ao serviço Supabase Auth pela API protegida do servidor. O envio trata nome, e-mail do destinatário e o link necessário ao acesso. A cópia manual pode criar a identidade inicial Auth sem senha; contas já existentes sempre precisam autenticar por conta própria. O cadastro aberto também registra os dados da própria empresa e o aceite dos documentos. O responsável também pode copiar e compartilhar o link por outro canal, envolvendo o provedor desse canal. Não inclua dados de leads no convite. Documente os serviços de e-mail efetivamente configurados em [FORNECEDORES E FINALIDADES].
 
 ## Retenção, backup e eliminação
 
@@ -57,7 +57,7 @@ Defina [PRAZO DE RETENÇÃO POR CATEGORIA], [PRAZO APÓS CANCELAMENTO], [OBRIGA�
 
 No modo local, os registros permanecem no navegador até a exclusão pelo usuário, remoção do armazenamento ou ação equivalente. Limpar o navegador pode apagar os dados sem possibilidade de recuperação. Arquivos exportados exigem eliminação separada por quem os mantém.
 
-No modo de nuvem, a exclusão de um lead pela interface, quando autorizada, remove o registro usado pelo CRM. O administrador do workspace pode solicitar pela operação implementada a exclusão de sua empresa, com confirmação do nome. Exportação e exclusão do workspace são preservadas mesmo quando a assinatura bloqueia o CRM. A exclusão da empresa remove leads, associações, convites, configurações e assinatura; mantém contas/perfis e eventos de auditoria com a empresa desvinculada. Contas de autenticação, cópias exportadas e backups exigem tratamento separado. Pedidos mais amplos serão tratados pelo operador conforme [PROCEDIMENTO, PRAZOS E RESTRIÇÕES LEGÍTIMAS].
+No modo de nuvem, a exclusão de um lead pela interface, quando autorizada, remove o registro usado pelo CRM. O administrador do workspace pode solicitar pela operação implementada a exclusão de sua empresa, com confirmação do nome. Exportação e exclusão do workspace são preservadas mesmo quando a assinatura bloqueia o CRM. A exclusão da empresa remove leads, associações, convites, configurações e assinatura; mantém contas/perfis, aceites dos documentos e eventos de auditoria com a empresa desvinculada. O registro privado de uso do período de teste também permanece vinculado ao perfil, com a empresa desvinculada, para impedir reiniciar o benefício. Defina sua retenção e o atendimento a pedidos de eliminação em [PROCEDIMENTO E PRAZOS]. Contas de autenticação, cópias exportadas e backups exigem tratamento separado. Pedidos mais amplos serão tratados pelo operador conforme [PROCEDIMENTO, PRAZOS E RESTRIÇÕES LEGÍTIMAS].
 
 ## Direitos e canais de atendimento
 
