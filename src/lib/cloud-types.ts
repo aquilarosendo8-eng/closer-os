@@ -1,4 +1,4 @@
-import type { Lead, Settings } from '../types'
+import type { Lead, LeadershipReviewInput, Settings, Stage } from '../types'
 import type { WorkspaceRole } from './access-types'
 
 /** Cloud data is provided by the authenticated shell; this view never persists it locally. */
@@ -24,4 +24,9 @@ export interface CloudAppContext {
   members?: { userId: string; displayName: string; email: string }[]
   leadOwners?: Record<string, string>
   onAssignLead?: (leadId: string, userId: string) => Promise<void>
+  stages?: Stage[]
+  canManagePipeline?: boolean
+  canReviewCalls?: boolean
+  onSavePipelineStages?: (stages: Stage[]) => Promise<void>
+  onReviewCall?: (leadId: string, input: LeadershipReviewInput) => Promise<void>
 }

@@ -137,9 +137,12 @@ async function main() {
     console.log(`Schema: ${version} instalada em transação, com controle de versão.`)
   }
   console.log(`Schema: ${filenames.length} versões e checksums conferidos; ${applied} migrações aplicadas.`)
-  const checks = await query("select tablename, rowsecurity from pg_tables where schemaname='public' and tablename in ('profiles','platform_admins','workspaces','memberships','leads','subscriptions','invitations','workspace_settings','audit_logs','policy_acceptances','bootstrap_settings')")
-  if (checks.length !== 11 || checks.some(row => !row.rowsecurity)) fail('As tabelas esperadas ou as regras RLS não estão completas.')
-  console.log('Autorização: 11 tabelas com RLS ativada.')
+  const expectedTables = ['profiles','platform_admins','workspaces','memberships','leads','subscriptions','invitations','workspace_settings','audit_logs','policy_acceptances','bootstrap_settings','pipelines','pipeline_stages','call_reviews']
+  const checks = await query(`select tablename, rowsecurity from pg_tables where schemaname='public' and tablename in (${expectedTables.map(sqlString).join(',')})`)
+  if (checks.length !== expectedTables.length || checks.some(row => !row.rowsecurity)) fail('As tabelas esperadas ou as regras RLS não estão completas.')
+  const stageColumn = await query("select is_nullable from information_schema.columns where table_schema='public' and table_name='leads' and column_name='stage_id'")
+  if (stageColumn.length !== 1 || stageColumn[0].is_nullable !== 'NO') fail('O vínculo obrigatório entre leads e etapas do pipeline não está completo.')
+  console.log(`Autorização: ${expectedTables.length} tabelas com RLS ativada e leads vinculados a etapas.`)
   if (values['check-only']) { console.log('Verificação concluída, sem alteração de contas ou dados.'); return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) fail('Informe --owner-email ou CLOSER_OWNER_EMAIL para preparar o acesso do dono.')
   const destination = new URL(appUrl)

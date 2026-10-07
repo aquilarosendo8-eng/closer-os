@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { defaultStageRows, stageForLegacyStatus } from './fixtures/pipeline'
 import type { Lead } from '../src/types'
 
 // These HTTP fixtures exercise session/UI contracts only. The SQL suite verifies real RLS.
@@ -111,11 +112,13 @@ async function mockSupabase(page: Page, options: FixtureOptions = {}): Promise<F
       const id = url.searchParams.get('workspace_id')
       await json(id?.startsWith('eq.') ? settings(id.slice(3)) : [settings(workspaceA), settings(workspaceB)]); return
     }
+    if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(String((body as { p_workspace_id?: string })?.p_workspace_id || workspaceA))); return }
+    if (path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
     if (path === '/rest/v1/leads') {
       const id = url.searchParams.get('workspace_id')?.replace(/^eq\./, '')
       if (id === workspaceA && options.holdWorkspaceALeads) await options.holdWorkspaceALeads
       const record = id === workspaceB ? lead('LEAD PRIVADO EMPRESA B', 'lead-b') : lead('LEAD PRIVADO EMPRESA A', 'lead-a')
-      await json([{ id: record.id, owner_id: userId, data: record }]); return
+      await json([{ id: record.id, owner_id: userId, stage_id: stageForLegacyStatus(id || workspaceA, record.status).id, data: record }]); return
     }
     await json({ message: `Unexpected mocked endpoint: ${path}` }, 500)
   })

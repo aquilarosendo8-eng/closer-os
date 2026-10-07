@@ -64,7 +64,7 @@ async function invitation(inviter, workspaceId, member, role) {
   return value
 }
 async function rows(api, workspaceId, label = 'Consulta autenticada de leads') {
-  return unwrap(await api.from('leads').select('id,owner_id,data').eq('workspace_id', workspaceId), label)
+  return unwrap(await api.from('leads').select('id,owner_id,data,stage_id').eq('workspace_id', workspaceId), label)
 }
 function payload(id, name) {
   const now = new Date().toISOString()
@@ -167,7 +167,62 @@ async function run() {
   unwrap(await fresh.auth.signInWithPassword({ email: closerA.email, password: closerA.password }), 'Novo login para conferir persistência')
   const persisted = (await rows(fresh, workspaceA.id)).find(row => row.id === leadA.id)
   check(persisted?.data.closedValue === 12500 && persisted.data.status === 'Fechado' && persisted.data.callScore === 8, 'Fechamento e avaliação persistem no servidor após novo login')
+
+  // Exercise the new schema with the same uniquely identified fixtures and public JWTs.
+  let stages = await rpc(adminA.client, 'list_pipeline_stages', { p_workspace_id: workspaceA.id }, 'Leitura real das etapas por empresa')
+  const otherStages = await rpc(adminB.client, 'list_pipeline_stages', { p_workspace_id: workspaceB.id }, 'Pipeline da outra empresa')
+  check(stages.length === 7 && stages.filter(row => row.type === 'WON').length === 1 && stages.filter(row => row.type === 'LOST').length === 1, 'Novas empresas recebem as sete etapas compatíveis')
+  check(persisted.data.stageType === 'WON' && persisted.stage_id === stages.find(row => row.type === 'WON').id, 'Lead legado fechado recebe etapa canônica de vitória')
+  check(unwrap(await adminA.client.from('pipeline_stages').select('id').eq('pipeline_id', otherStages[0].pipeline_id), 'Leitura RLS entre empresas').length === 0, 'RLS esconde etapas de outra empresa')
+  check(Boolean((await closerA.client.rpc('save_pipeline_stages', { p_workspace_id: workspaceA.id, p_stages: stages })).error), 'Closer não configura o pipeline pela API')
+  check(Boolean((await manager.client.rpc('save_pipeline_stages', { p_workspace_id: workspaceB.id, p_stages: otherStages })).error), 'Gestor não configura pipeline de outra empresa')
+  const createdStages = stages.map(row => row.type === 'WON' ? { ...row, name: 'Contrato confirmado' } : row)
+  createdStages.splice(4, 0, { name: 'Negociação personalizada', type: 'NORMAL', active: true, color: '#507AC8' })
+  stages = await rpc(adminA.client, 'save_pipeline_stages', { p_workspace_id: workspaceA.id, p_stages: createdStages }, 'Admin cria etapa e renomeia vitória')
+  check(stages.length === 8 && stages.some(row => row.name === 'Negociação personalizada' && row.id), 'Admin cria etapa com ID persistente')
+  const winStage = stages.find(row => row.type === 'WON'), lossStage = stages.find(row => row.type === 'LOST')
+  const reversed = [...stages].reverse()
+  stages = await rpc(manager.client, 'save_pipeline_stages', { p_workspace_id: workspaceA.id, p_stages: reversed }, 'Gestor reorganiza o pipeline')
+  check(stages.every((row, index) => row.id === reversed[index].id && row.position === index), 'Ordem das etapas persiste sem alterar IDs')
+  const renamedWin = (await rows(closerA.client, workspaceA.id))[0]
+  check(renamedWin.data.closedValue === 12500 && renamedWin.data.stageType === 'WON', 'Renomear WON mantém valor e classificação da venda')
+  check(Boolean((await adminA.client.rpc('save_pipeline_stages', { p_workspace_id: workspaceA.id, p_stages: stages.filter(row => row.id !== winStage.id) })).error), 'Configuração inválida não remove vitória ocupada')
+  const foreignStage = await closerA.client.from('leads').update({ stage_id: otherStages[0].id, data: { ...renamedWin.data, stageId: otherStages[0].id } }).eq('workspace_id', workspaceA.id).eq('id', leadA.id)
+  check(Boolean(foreignStage.error), 'Lead não pode referenciar etapa de outra empresa')
+
+  const recording = { ...renamedWin.data, callDate: new Date().toISOString(), recordingUrl: 'https://example.invalid/gravacao%20da%20call', nextStep: 'Validar os próximos passos com o decisor' }
+  check(Boolean((await closerA.client.from('leads').update({ data: { ...recording, recordingUrl: 'javascript:alert(1)' } }).eq('workspace_id', workspaceA.id).eq('id', leadA.id)).error), 'URL de gravação insegura é rejeitada no banco')
+  unwrap(await closerA.client.from('leads').update({ data: recording }).eq('workspace_id', workspaceA.id).eq('id', leadA.id).select('id').single(), 'Closer salva gravação HTTPS da própria call')
+  check((await rows(manager.client, workspaceA.id)).find(row => row.id === leadA.id)?.data.recordingUrl === recording.recordingUrl, 'Gestor visualiza gravação persistida')
+  check((await rows(viewer.client, workspaceA.id)).find(row => row.id === leadA.id)?.data.recordingUrl === recording.recordingUrl, 'Viewer autorizado visualiza gravação sem editar')
+  const review = await rpc(manager.client, 'review_call', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_feedback: 'Aprofundar o diagnóstico antes da proposta.', p_score: 0 }, 'Gestor registra revisão real')
+  check(review.score === 0 && review.reviewed_by === manager.id && Boolean(review.reviewed_at), 'Revisão preserva nota zero e autoria/data do servidor')
+  const closerReviews = await rpc(closerA.client, 'list_call_reviews', { p_workspace_id: workspaceA.id }, 'Closer lê revisão de sua própria call')
+  check(closerReviews.length === 1 && closerReviews[0].feedback === review.feedback, 'Closer recebe o feedback correto da liderança')
+  check((await rpc(closerB.client, 'list_call_reviews', { p_workspace_id: workspaceA.id }, 'Revisões respeitam responsável')).length === 0, 'Closer não lê revisão da call de outro responsável')
+  const foreignReviews = await adminB.client.rpc('list_call_reviews', { p_workspace_id: workspaceA.id })
+  check(Boolean(foreignReviews.error) || foreignReviews.data?.length === 0, 'Outra empresa não lê os feedbacks')
+  check(Boolean((await closerA.client.rpc('review_call', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_feedback: 'Alteração indevida', p_score: 10 })).error), 'Closer não altera revisão pela RPC')
+  await deniedWrite(closerA.client.from('call_reviews').update({ feedback: 'Alteração indevida' }).eq('workspace_id', workspaceA.id).eq('lead_id', leadA.id).select('lead_id'),
+    async () => (await rpc(manager.client, 'list_call_reviews', { p_workspace_id: workspaceA.id }, 'Conferência de revisão protegida'))[0]?.feedback === review.feedback, 'Closer não altera revisão diretamente pela tabela')
+  check(Boolean((await adminB.client.rpc('review_call', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_feedback: 'Alteração entre empresas', p_score: 10 })).error), 'Outra empresa não revisa esta call')
+  const forged = { ...recording, leadershipReview: { feedback: 'Feedback falso', score: 10, reviewedBy: closerA.id, reviewedAt: new Date().toISOString() } }
+  unwrap(await closerA.client.from('leads').update({ data: forged }).eq('workspace_id', workspaceA.id).eq('id', leadA.id), 'JSON do pós-call não controla revisão da liderança')
+  check((await rpc(manager.client, 'list_call_reviews', { p_workspace_id: workspaceA.id }, 'Revisão continua autoritativa'))[0].feedback === review.feedback && !(await rows(closerA.client, workspaceA.id))[0].data.leadershipReview, 'Feedback falso no JSON não substitui a revisão protegida')
+
+  const lost = { ...recording, stageId: lossStage.id, status: 'Perdido', closedValue: 0, closedAt: '' }
+  check(Boolean((await closerA.client.from('leads').update({ data: lost, stage_id: lossStage.id }).eq('workspace_id', workspaceA.id).eq('id', leadA.id)).error), 'Movimento para LOST exige motivo da perda')
+  unwrap(await closerA.client.from('leads').update({ data: { ...lost, lossReason: 'Sumiu', lossComment: 'Tentativas de contato sem resposta.' }, stage_id: lossStage.id }).eq('workspace_id', workspaceA.id).eq('id', leadA.id), 'Movimento real para LOST com motivo')
+  const lostRow = (await rows(closerA.client, workspaceA.id))[0]
+  check(lostRow.data.stageType === 'LOST' && lostRow.data.lossReason === 'Sumiu' && lostRow.data.lossComment.includes('contato'), 'Motivo e comentário persistem no lead correto')
+  check(Boolean((await closerA.client.from('leads').update({ data: { ...lostRow.data, lossReason: '' } }).eq('workspace_id', workspaceA.id).eq('id', leadA.id)).error), 'Motivo da perda já registrado não pode ser removido')
+  const wonAgain = { ...lostRow.data, stageId: winStage.id, status: 'Fechado', attendance: 'Compareceu', closedValue: 12500, closedAt: new Date().toISOString() }
+  check(Boolean((await closerA.client.from('leads').update({ data: { ...wonAgain, closedValue: 0 }, stage_id: winStage.id }).eq('workspace_id', workspaceA.id).eq('id', leadA.id)).error), 'Movimento para WON exige valor positivo')
+  unwrap(await closerA.client.from('leads').update({ data: wonAgain, stage_id: winStage.id }).eq('workspace_id', workspaceA.id).eq('id', leadA.id), 'Movimento real para WON renomeada')
+  check((await rows(closerA.client, workspaceA.id))[0].data.stageType === 'WON' && (await rows(closerA.client, workspaceA.id))[0].data.closedValue === 12500, 'Vitória é identificada pelo tipo da etapa e valor persistido')
+
   const exported = await rpc(adminA.client, 'export_workspace', { p_workspace_id: workspaceA.id }, 'Exportação real pelo administrador da empresa')
+  check(exported?.pipeline_stages?.length === 8 && exported?.call_reviews?.length === 1 && exported?.pipelines?.length === 1, 'Exportação preserva configuração do pipeline e feedbacks da liderança')
   check(exported?.leads?.length === 3 && exported.leads.some(row => row.id === leadA.id && row.closedValue === 12500), 'Exportação da empresa inclui somente seus dados persistidos')
 
   check(Boolean((await adminA.client.rpc('admin_update_subscription', { p_workspace_id: workspaceA.id, p_plan: 'team', p_status: 'active', p_seat_limit: 6 })).error), 'Empresa cliente não altera o próprio plano comercial')

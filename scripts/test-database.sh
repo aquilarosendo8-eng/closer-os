@@ -27,13 +27,20 @@ docker exec "$TASK_DB_CONTAINER" createdb -U postgres "$TASK_DB_NAME"
 psql_local() { docker exec -i "$TASK_DB_CONTAINER" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d "$TASK_DB_NAME" "$@"; }
 psql_local < "$TASK_REPO_ROOT/supabase/tests/auth-stub.sql" >/dev/null
 for task_migration in "$TASK_REPO_ROOT"/supabase/migrations/*.sql; do
+  if [[ "$task_migration" == *202610070004_custom_pipeline_call_reviews.sql ]]; then
+    psql_local < "$TASK_REPO_ROOT/supabase/tests/pre-pipeline-migration.sql" >/dev/null
+  fi
   psql_local < "$task_migration" >/dev/null
+  if [[ "$task_migration" == *202610070004_custom_pipeline_call_reviews.sql ]]; then
+    psql_local < "$TASK_REPO_ROOT/supabase/tests/post-pipeline-migration.sql" >/dev/null
+  fi
 done
 if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.log" 2>&1; then
   cat "$TASK_LOG_DIR/rls.log" >&2; exit 1
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
-for task_assertions in self-service invitation-details; do
+psql_local -Atc "insert into test.results select label from migration_test.results;" >/dev/null
+for task_assertions in self-service invitation-details pipeline-call-reviews; do
   if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
     cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
   fi

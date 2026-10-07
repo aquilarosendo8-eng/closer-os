@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
+import { defaultStageRows } from './fixtures/pipeline'
 
 const smtpFailureMessage = 'Configure o SMTP do Supabase para enviar convites a este destinatário. O convite foi cancelado.'
 type FixtureInvitation = { id: string; workspace_id: string; email: string; name?: string | null; role: string; expires_at: string; accepted_at: string | null; revoked_at: string | null }
@@ -60,6 +61,8 @@ async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'c
       const settings = { workspace_id: workspaceId, name: 'Ana Responsável', commission_rate: 10, revenue_goal: 200000 }
       await json(url.searchParams.get('workspace_id')?.startsWith('eq.') ? settings : [settings]); return
     }
+    if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(workspaceId)); return }
+    if (path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
     if (path === '/rest/v1/leads') { await json([]); return }
     if (path === '/rest/v1/rpc/list_members') { await json(body?.p_workspace_id === workspaceId ? structuredClone(state.members) : []); return }
     if (path === '/rest/v1/rpc/list_invitations') { await json(structuredClone(state.invitations.filter(invite => invite.workspace_id === body?.p_workspace_id))); return }

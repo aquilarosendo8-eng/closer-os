@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test'
+import { defaultStageRows, stageForLegacyStatus } from './fixtures/pipeline'
 import { mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { Lead } from '../src/types'
@@ -78,7 +79,9 @@ async function mockPresentation(page: Page, options: FixtureOptions = {}) {
       const settings = { workspace_id: workspaceId, name: 'Ana Responsável', commission_rate: 10, revenue_goal: 200000 }
       await json(url.searchParams.get('workspace_id')?.startsWith('eq.') ? settings : [settings]); return
     }
-    if (path === '/rest/v1/leads') { await json(leads.map(data => ({ id: data.id, owner_id: userId, data }))); return }
+    if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(workspaceId)); return }
+    if (path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
+    if (path === '/rest/v1/leads') { await json(leads.map(data => ({ id: data.id, owner_id: userId, stage_id: stageForLegacyStatus(workspaceId, data.status).id, data }))); return }
     if (path === '/rest/v1/rpc/list_members') { await json(members); return }
     if (path === '/rest/v1/rpc/list_invitations') { await json([
       { id: 'pending-theme', workspace_id: workspaceId, email: 'nova@example.com', name: 'Nina Convidada', role: 'closer', expires_at: '2030-01-01T00:00:00Z', accepted_at: null, revoked_at: null },

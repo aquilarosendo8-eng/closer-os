@@ -1,4 +1,5 @@
 import type { Lead } from '../types'
+import { isWon, isLost } from './pipeline'
 
 const moneyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 })
 const qualifiedStatuses = new Set<Lead['status']>(['Qualificado', 'Call agendada', 'Compareceu', 'Follow-up', 'Fechado'])
@@ -27,19 +28,23 @@ function dateOf(value: string): Date | null {
 
 /** Closed revenue follows its closing date; other activity follows the meeting or creation date. */
 function activityDate(lead: Lead): Date | null {
-  return (lead.status === 'Fechado' ? dateOf(lead.closedAt) : null) || dateOf(lead.callDate) || dateOf(lead.createdAt)
+  return (isWon(lead) ? dateOf(lead.closedAt) : null) || dateOf(lead.callDate) || dateOf(lead.createdAt)
 }
 
 export function isStale(lead: Lead, now = new Date()): boolean {
-  if (lead.status === 'Fechado' || lead.status === 'Perdido') return false
+  if (isWon(lead) || isLost(lead)) return false
   const contact = dateOf(lead.lastContactAt) || dateOf(lead.createdAt)
   return !!contact && now.getTime() - contact.getTime() > 5 * 24 * 60 * 60 * 1000
 }
 
+export function isQualified(lead: Lead): boolean {
+  return isWon(lead) || lead.attendance === 'Compareceu' || (!isLost(lead) && qualifiedStatuses.has(lead.status))
+}
+
 export function getMetrics(leads: Lead[]) {
-  const closedLeads = leads.filter(lead => lead.status === 'Fechado')
-  const attended = leads.filter(lead => lead.attendance === 'Compareceu' || lead.status === 'Fechado').length
-  const missed = leads.filter(lead => lead.attendance === 'Não compareceu' && lead.status !== 'Fechado').length
+  const closedLeads = leads.filter(lead => isWon(lead))
+  const attended = leads.filter(lead => lead.attendance === 'Compareceu' || isWon(lead)).length
+  const missed = leads.filter(lead => lead.attendance === 'Não compareceu' && !isWon(lead)).length
   const revenue = closedLeads.reduce((total, lead) => total + (Number.isFinite(lead.closedValue) ? lead.closedValue : 0), 0)
   const closed = closedLeads.length
   return {
@@ -47,7 +52,7 @@ export function getMetrics(leads: Lead[]) {
     closed,
     attended,
     scheduled: leads.filter(lead => !!dateOf(lead.callDate)).length,
-    qualified: leads.filter(lead => qualifiedStatuses.has(lead.status) || lead.attendance === 'Compareceu').length,
+    qualified: leads.filter(isQualified).length,
     showRate: attended + missed ? attended / (attended + missed) * 100 : 0,
     closeRate: attended ? closed / attended * 100 : 0,
     averageTicket: closed ? revenue / closed : 0,
@@ -102,14 +107,14 @@ export function weeklyEvolution(leads: Lead[], now = new Date()) {
     end.setDate(end.getDate() + 7)
     const weeklyCalls = leads.filter(lead => {
       const date = dateOf(lead.callDate)
-      return !!date && date >= start && date < end && (lead.attendance === 'Compareceu' || lead.status === 'Fechado')
+      return !!date && date >= start && date < end && (lead.attendance === 'Compareceu' || isWon(lead))
     })
     const scores = weeklyCalls.map(lead => lead.callScore).filter((score): score is number => score !== null && Number.isFinite(score))
     return {
       week: start.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
       score: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) / 10 : 0,
       calls: weeklyCalls.length,
-      closed: weeklyCalls.filter(lead => lead.status === 'Fechado').length,
+      closed: weeklyCalls.filter(lead => isWon(lead)).length,
     }
   })
 }

@@ -21,7 +21,7 @@ async function createLead(page: Page, name: string, status = 'Lead novo') {
   await dialog.getByLabel('Nome do lead').fill(name)
   await dialog.getByLabel('Empresa', { exact: true }).fill('Empresa de teste')
   await dialog.getByLabel('Ticket previsto (R$)').fill('12500')
-  await dialog.getByLabel('Status').selectOption(status)
+  await dialog.getByLabel('Status').selectOption({ label: status })
   return dialog
 }
 
@@ -77,9 +77,10 @@ test('public demo cannot read or overwrite personal records from the previous br
   expect(JSON.parse(storage.demoSettings!).name).toBe('Perfil da demonstração')
 })
 
-test('a closed new lead defaults to its ticket, updates revenue and survives reload', async ({ page }) => {
+test('a closed new lead requires the actual amount, updates revenue and survives reload', async ({ page }) => {
   const dialog = await createLead(page, 'Venda validada E2E', 'Fechado')
-  await expect(dialog.getByLabel('Valor fechado (R$)')).toHaveValue('12500')
+  await expect(dialog.getByLabel('Valor fechado (R$)')).toHaveValue('')
+  await dialog.getByLabel('Valor fechado (R$)').fill('12500')
   await expect(dialog.getByLabel('Comparecimento')).toHaveValue('Compareceu')
   await dialog.getByRole('button', { name: 'Cadastrar lead' }).click()
   await expect(dialog).not.toBeVisible()
@@ -89,7 +90,7 @@ test('a closed new lead defaults to its ticket, updates revenue and survives rel
   await page.getByRole('button', { name: /^Pipeline\s*\d*$/ }).click()
   await page.getByLabel('Buscar no pipeline').fill('Venda validada E2E')
   await expect(page.locator('.lead-card')).toHaveCount(1)
-  await expect(page.getByLabel('Etapa de Venda validada E2E')).toHaveValue('Fechado')
+  await expect(page.getByLabel('Etapa de Venda validada E2E').locator('option:checked')).toHaveText('Fechado')
 })
 
 test('old last contact marks a lead red and a new contact removes the alert', async ({ page }) => {
@@ -189,6 +190,8 @@ test('backup imports add new leads, preserve existing IDs and reject incomplete 
     closedValue: 0,
     callScore: null,
   }
+  // Simulate a genuine version-1 backup without canonical pipeline metadata.
+  delete imported.stageId; delete imported.stageType; delete imported.stageName
   await page.getByRole('button', { name: 'Configurações', exact: true }).click()
   const settings = page.getByRole('dialog', { name: 'Seu workspace' })
   const chooserPromise = page.waitForEvent('filechooser')
@@ -220,20 +223,20 @@ test('backup imports add new leads, preserve existing IDs and reject incomplete 
   await page.getByRole('button', { name: /^Pipeline\s*\d*$/ }).click()
   await page.getByLabel('Buscar no pipeline').fill(imported.name)
   await expect(page.locator('.lead-card')).toHaveCount(1)
-  await expect(page.getByLabel(`Etapa de ${imported.name}`)).toHaveValue('Qualificado')
+  await expect(page.getByLabel(`Etapa de ${imported.name}`).locator('option:checked')).toHaveText('Qualificado')
 })
 
 test('pipeline stage add opens and saves the selected status', async ({ page }) => {
   await page.getByRole('button', { name: /^Pipeline\s*\d*$/ }).click()
   await page.getByRole('button', { name: 'Adicionar lead em Compareceu', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Uma nova oportunidade' })
-  await expect(dialog.getByLabel('Status')).toHaveValue('Compareceu')
+  await expect(dialog.getByLabel('Status').locator('option:checked')).toHaveText('Compareceu')
   await expect(dialog.getByLabel('Comparecimento')).toHaveValue('Compareceu')
   await dialog.getByLabel('Nome do lead').fill('Lead pela etapa E2E')
   await dialog.getByRole('button', { name: 'Cadastrar lead' }).click()
   await page.getByLabel('Buscar no pipeline').fill('Lead pela etapa E2E')
   await expect(page.locator('.lead-card')).toHaveCount(1)
-  await expect(page.getByLabel('Etapa de Lead pela etapa E2E')).toHaveValue('Compareceu')
+  await expect(page.getByLabel('Etapa de Lead pela etapa E2E').locator('option:checked')).toHaveText('Compareceu')
 })
 
 test('mobile Calls keeps the page width and allows reviewing a horizontally scrolled row', async ({ page }) => {

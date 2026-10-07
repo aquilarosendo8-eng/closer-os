@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { ArrowDownRight, ArrowUpRight, CircleCheck, Flag, Lightbulb, MessageCircleWarning, Sparkles, Target, TrendingUp } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Lead } from '../types'
+import { isWon, isLost } from '../lib/pipeline'
+import { isQualified } from '../lib/analytics'
 import './calls-performance.css'
 
 interface PerformanceProps { leads: Lead[] }
@@ -15,8 +17,8 @@ function groupValues(leads: Lead[], getValue: (lead: Lead) => string) {
     const key = normalize(value)
     const current = grouped.get(key) ?? { name: value, count: 0, lost: 0, won: 0 }
     current.count += 1
-    if (lead.status === 'Perdido') current.lost += 1
-    if (lead.status === 'Fechado') current.won += 1
+    if (isLost(lead)) current.lost += 1
+    if (isWon(lead)) current.won += 1
     grouped.set(key, current)
   })
   return [...grouped.values()].sort((a, b) => b.count - a.count)
@@ -50,15 +52,14 @@ export function Performance({ leads }: PerformanceProps) {
     const attended = leads.filter(lead => lead.attendance === 'Compareceu')
     const scored = attended.filter(lead => lead.callScore !== null)
     const average = scored.length ? scored.reduce((sum, lead) => sum + (lead.callScore ?? 0), 0) / scored.length : null
-    const wins = leads.filter(lead => lead.status === 'Fechado')
+    const wins = leads.filter(lead => isWon(lead))
     const errors = groupValues(attended, lead => lead.closerError)
     const objections = groupValues(leads, lead => ['nenhuma', 'sem objecao', 'nao avaliada'].includes(normalize(lead.objection)) ? '' : lead.objection)
     const origins = groupValues(leads, lead => lead.source || 'Não informada')
-    const qualifiedStatuses = new Set<Lead['status']>(['Qualificado', 'Call agendada', 'Compareceu', 'Follow-up', 'Fechado'])
-    const qualified = leads.filter(lead => qualifiedStatuses.has(lead.status) || lead.attendance === 'Compareceu')
+    const qualified = leads.filter(isQualified)
     const urgency = ['Alta', 'Média', 'Baixa'].map(value => {
       const group = qualified.filter(lead => lead.urgency === value)
-      const won = group.filter(lead => lead.status === 'Fechado').length
+      const won = group.filter(lead => isWon(lead)).length
       return { name: value, qualified: group.length, won, rate: group.length ? won / group.length * 100 : 0 }
     })
     const evolution = weekEvolution(leads)
