@@ -1,0 +1,1007 @@
+/* Authenticated CRM presentation only. The public demo keeps its original styles. */
+.crm-visual .cp-page {
+  gap: 24px;
+  color: var(--color-text-primary);
+}
+
+.crm-visual .cp-page .metrics-grid {
+  gap: 20px;
+}
+
+.crm-visual .cp-stat-row {
+  margin: 18px 0 10px;
+  gap: 16px;
+}
+
+.crm-visual .cp-stat-row .stat-value {
+  color: var(--color-text-primary);
+  font-size: clamp(28px, 2.2vw, 36px);
+  letter-spacing: -1.1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-visual .cp-stat-row .stat-value small {
+  color: var(--color-text-secondary);
+  font-family: 'DM Sans Variable', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.crm-visual .cp-stat-icon,
+.crm-visual .cp-stat-icon.cp-amber {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-stat-icon.cp-blue {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.crm-visual .cp-stat-caption {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.crm-visual .cp-calls-panel > .panel-header {
+  padding-bottom: 24px;
+}
+
+.crm-visual .cp-list-tools {
+  padding: 0 24px 22px;
+  gap: 20px;
+}
+
+.crm-visual .cp-tabs {
+  padding: 4px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-tabs button {
+  min-height: 34px;
+  padding: 7px 17px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-tabs button:hover {
+  color: var(--color-text-primary);
+}
+
+.crm-visual .cp-tabs button.active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+.crm-visual .cp-search {
+  min-width: 270px;
+  min-height: 42px;
+  padding: 10px 13px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.crm-visual .cp-search input {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.crm-visual .cp-search input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.crm-visual .cp-search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.crm-visual .cp-calls-table td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.crm-visual .cp-person {
+  gap: 12px;
+}
+
+.crm-visual .cp-person strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.crm-visual .cp-person small,
+.crm-visual .cp-call-date {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.crm-visual .avatar.cp-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  font-size: 11px;
+}
+
+.crm-visual .cp-calls-table .cp-attendance {
+  max-width: 180px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-calls-table .cp-attendance.is-attended {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.crm-visual .cp-calls-table .cp-attendance.is-missed {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.crm-visual .cp-calls-table .cp-attendance:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.crm-visual .cp-objection {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.crm-visual .cp-score {
+  min-height: 29px;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-visual .cp-score.good {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.crm-visual .cp-score.low {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.crm-visual .cp-score small {
+  opacity: 1;
+  font-size: 10px;
+}
+
+.crm-visual .cp-no-score {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-review-button {
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-review-button:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.crm-visual .cp-tip {
+  padding: 17px 20px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-tip p {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-tip strong {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.crm-visual .cp-empty,
+.crm-visual .cp-small-empty,
+.crm-visual .cp-chart-empty {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-empty h3,
+.crm-visual .cp-small-empty h3,
+.crm-visual .cp-chart-empty h3 {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  margin: 12px 0 6px;
+}
+
+.crm-visual .cp-empty > svg,
+.crm-visual .cp-small-empty > svg,
+.crm-visual .cp-chart-empty > svg {
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-modal-backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(4px);
+  padding: 24px;
+}
+
+.crm-visual .cp-review-modal {
+  width: 780px;
+  max-height: min(940px, 92vh);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-modal, var(--shadow-sm));
+}
+
+.crm-visual .cp-modal-top {
+  padding: 27px 30px 23px;
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.crm-visual .cp-modal-top .eyebrow {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+
+.crm-visual .cp-modal-top h2 {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -.8px;
+  margin: 9px 0 7px;
+}
+
+.crm-visual .cp-modal-top p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.crm-visual .cp-icon-button {
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-icon-button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-modal-body {
+  padding: 27px 30px;
+  gap: 24px;
+}
+
+.crm-visual .cp-modal-body > fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.crm-visual .cp-review-grid {
+  gap: 20px;
+}
+
+.crm-visual .cp-field {
+  gap: 9px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-field input,
+.crm-visual .cp-field select,
+.crm-visual .cp-field textarea,
+.crm-visual .cp-summary-section > textarea {
+  padding: 12px 13px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.crm-visual .cp-field select,
+.crm-visual .cp-field input {
+  min-height: 44px;
+}
+
+.crm-visual .cp-field input::placeholder,
+.crm-visual .cp-field textarea::placeholder,
+.crm-visual .cp-summary-section > textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.crm-visual .cp-field input:focus,
+.crm-visual .cp-field select:focus,
+.crm-visual .cp-field textarea:focus,
+.crm-visual .cp-summary-section > textarea:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px var(--color-primary-soft) !important;
+}
+
+.crm-visual .cp-modal-body fieldset:disabled input,
+.crm-visual .cp-modal-body fieldset:disabled textarea,
+.crm-visual .cp-modal-body fieldset:disabled select,
+.crm-visual .cp-field select:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.crm-visual .cp-field-heading {
+  margin-bottom: 12px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.crm-visual .cp-field-heading .muted {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-score-field {
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-score-options {
+  gap: 7px;
+}
+
+.crm-visual .cp-score-options button {
+  height: 40px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-score-options button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.crm-visual .cp-score-options button.selected {
+  border-color: var(--color-primary-solid);
+  background: var(--color-primary-solid);
+  color: var(--color-on-primary, var(--color-surface));
+  font-weight: 600;
+}
+
+.crm-visual .cp-score-options button:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.crm-visual .cp-score-scale {
+  margin-top: 12px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-score-scale button {
+  color: var(--color-primary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-analysis-bar {
+  gap: 14px;
+  margin-top: 13px;
+}
+
+.crm-visual .cp-analysis-bar > span {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-analysis-bar .button {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.crm-visual .cp-analysis-bar .button:disabled {
+  opacity: 1;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+}
+
+.crm-visual .cp-page > [role="alert"],
+.crm-visual .cp-modal-body > [role="alert"] {
+  padding: 13px 16px;
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-reading {
+  padding: 20px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-reading-title {
+  color: var(--color-text-primary);
+}
+
+.crm-visual .cp-reading-title > svg {
+  color: var(--color-primary);
+}
+
+.crm-visual .cp-reading-disclaimer {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-reading .button {
+  font-size: 12px;
+}
+
+.crm-visual .cp-diagnosis-title {
+  padding-top: 23px;
+  border-color: var(--color-border);
+}
+
+.crm-visual .cp-diagnosis-title .eyebrow {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 1.3px;
+}
+
+.crm-visual .cp-checkbox {
+  gap: 10px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.crm-visual .cp-checkbox input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary-solid);
+}
+
+.crm-visual .cp-modal-footer {
+  padding: 19px 30px;
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-modal-footer > .muted {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-page button:focus-visible,
+.crm-visual .cp-page select:focus-visible,
+.crm-visual .cp-review-modal button:focus-visible {
+  outline-color: var(--color-primary);
+  outline-offset: 3px;
+}
+
+.crm-visual .cp-performance-top {
+  grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr);
+  gap: 24px;
+}
+
+.crm-visual .cp-weekly-chart {
+  height: 270px;
+  padding: 6px 12px 0 18px;
+}
+
+.crm-visual .cp-chart-tooltip {
+  padding: 13px 16px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.crm-visual .cp-chart-tooltip strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.crm-visual .cp-chart-note,
+.crm-visual .cp-panel-note {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-chart-note {
+  margin-top: 12px;
+  margin-bottom: 23px;
+}
+
+.crm-visual .panel.cp-focus-panel {
+  padding: 28px;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.crm-visual .cp-focus-panel .eyebrow {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  letter-spacing: 1.3px;
+}
+
+.crm-visual .cp-focus-panel .eyebrow > svg {
+  color: var(--color-primary);
+}
+
+.crm-visual .cp-focus-panel h2 {
+  margin: 18px 0 24px;
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 29px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+
+.crm-visual .cp-focus-label,
+.crm-visual .cp-focus-count {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-focus-error {
+  margin: 10px 0 23px;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.crm-visual .cp-focus-action {
+  padding-top: 19px;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-focus-action > svg {
+  color: var(--color-success);
+}
+
+.crm-visual .cp-focus-action p {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.crm-visual .cp-trend {
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-trend.negative {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.crm-visual .cp-two-panels {
+  gap: 24px;
+}
+
+.crm-visual .cp-panel-icon {
+  padding: 9px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-ranking {
+  padding-bottom: 12px;
+}
+
+.crm-visual .cp-error-row {
+  padding: 18px 0;
+  gap: 18px;
+  border-color: var(--color-border);
+}
+
+.crm-visual .cp-rank-number {
+  width: 25px;
+  color: var(--color-text-secondary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-visual .cp-error-row > div > strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+
+.crm-visual .cp-mini-track {
+  height: 4px;
+  background: var(--color-surface-raised);
+  margin-top: 12px;
+}
+
+.crm-visual .cp-mini-track span {
+  background: var(--color-chart-secondary);
+}
+
+.crm-visual .cp-rank-count {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-visual .cp-rank-count small {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.crm-visual .cp-objection-row {
+  padding: 14px 0;
+}
+
+.crm-visual .cp-objection-header strong,
+.crm-visual .cp-objection-header > span {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-objection-header small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.crm-visual .cp-objection-track {
+  margin-top: 12px;
+  height: 6px;
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-objection-track span,
+.crm-visual .cp-objection-dot {
+  background: var(--color-chart-primary);
+}
+
+.crm-visual .cp-objection-track .cp-bar-1,
+.crm-visual .cp-objection-dot.cp-dot-1 {
+  background: var(--color-chart-secondary);
+}
+
+.crm-visual .cp-objection-track .cp-bar-2,
+.crm-visual .cp-objection-dot.cp-dot-2 {
+  background: var(--color-chart-neutral-1);
+}
+
+.crm-visual .cp-objection-track .cp-bar-3,
+.crm-visual .cp-objection-dot.cp-dot-3 {
+  background: var(--color-chart-neutral-2);
+}
+
+.crm-visual .cp-objection-track .cp-bar-4,
+.crm-visual .cp-objection-dot.cp-dot-4 {
+  background: var(--color-chart-neutral-3);
+}
+
+.crm-visual .cp-objection-outcomes {
+  margin-top: 9px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-origin-table td {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.crm-visual .cp-origin-table td strong {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.crm-visual .cp-origin-table td:not(:first-child),
+.crm-visual .cp-origin-table th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.crm-visual .cp-conversion {
+  width: 85px;
+  margin-left: auto;
+  gap: 9px;
+}
+
+.crm-visual .cp-conversion > span {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.crm-visual .cp-conversion > div {
+  height: 4px;
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .cp-conversion i {
+  background: var(--color-chart-primary);
+}
+
+.crm-visual .cp-origin-insight {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-origin-insight > svg {
+  color: var(--color-success);
+}
+
+.crm-visual .cp-origin-insight p {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.crm-visual .cp-origin-insight strong {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.crm-visual .cp-urgency-row {
+  padding: 19px 0;
+  border-color: var(--color-border);
+}
+
+.crm-visual .cp-urgency-row strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crm-visual .cp-urgency-row small {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.crm-visual .cp-urgency-icon,
+.crm-visual .cp-urgency-icon.low {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .cp-urgency-icon.high {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.crm-visual .cp-urgency-icon.medium {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+@media (max-width: 1200px) {
+  .crm-visual .cp-page .metrics-grid {
+    gap: 16px;
+  }
+
+  .crm-visual .cp-performance-top {
+    grid-template-columns: minmax(0, 1.5fr) minmax(245px, 1fr);
+  }
+
+  .crm-visual .cp-calls-table {
+    min-width: 860px;
+  }
+
+  .crm-visual .cp-list-tools {
+    gap: 12px;
+  }
+
+  .crm-visual .cp-search {
+    min-width: 230px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .crm-visual .cp-performance-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .crm-visual .cp-focus-panel h2 br {
+    display: none;
+  }
+
+  .crm-visual .cp-focus-panel h2 {
+    font-size: 25px;
+  }
+
+  .crm-visual .panel.cp-focus-panel {
+    padding: 25px;
+  }
+}
+
+@media (max-width: 760px) {
+  .crm-visual .cp-page .metrics-grid,
+  .crm-visual .cp-two-panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .crm-visual .cp-list-tools {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 16px;
+  }
+
+  .crm-visual .cp-tabs {
+    justify-content: space-between;
+  }
+
+  .crm-visual .cp-tabs button {
+    flex: 1;
+  }
+
+  .crm-visual .cp-search {
+    min-width: 0;
+  }
+
+  .crm-visual .cp-stat-row .stat-value {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .crm-visual .cp-page,
+  .crm-visual .cp-performance-top,
+  .crm-visual .cp-two-panels {
+    gap: 20px;
+  }
+
+  .crm-visual .cp-list-tools {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .crm-visual .cp-modal-backdrop {
+    padding: 12px;
+  }
+
+  .crm-visual .cp-review-modal {
+    max-height: 95vh;
+  }
+
+  .crm-visual .cp-modal-top,
+  .crm-visual .cp-modal-body {
+    padding: 22px 20px;
+  }
+
+  .crm-visual .cp-modal-top h2 {
+    font-size: 23px;
+  }
+
+  .crm-visual .cp-review-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .crm-visual .cp-score-field {
+    padding: 16px 12px;
+  }
+
+  .crm-visual .cp-score-options {
+    gap: 3px;
+  }
+
+  .crm-visual .cp-score-options button {
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .crm-visual .cp-score-scale {
+    font-size: 10px;
+  }
+
+  .crm-visual .cp-field-heading {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .crm-visual .cp-field-heading .muted {
+    font-size: 10px;
+  }
+
+  .crm-visual .cp-modal-footer {
+    padding: 17px 20px;
+  }
+
+  .crm-visual .cp-weekly-chart {
+    height: 235px;
+    padding-left: 12px;
+    padding-right: 8px;
+  }
+
+  .crm-visual .cp-ranking,
+  .crm-visual .cp-panel-note {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .crm-visual .cp-error-row {
+    gap: 12px;
+  }
+
+  .crm-visual .cp-objection-header strong,
+  .crm-visual .cp-objection-header > span {
+    font-size: 12px;
+  }
+
+  .crm-visual .cp-trend {
+    font-size: 10px;
+  }
+}

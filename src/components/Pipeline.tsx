@@ -3,7 +3,7 @@ import { AlertCircle, ArrowUpRight, CalendarDays, Columns3, LayoutList, Plus, Se
 import { STATUSES, type Lead, type LeadStatus } from '../types'
 import { initials, isStale, money } from '../lib/analytics'
 
-const colors = ['#afa3ce', '#9581c4', '#7194d6', '#d3a064', '#b67fc3', '#4e9e80', '#bf818a']
+const colors = ['var(--color-chart-neutral-2, #afa3ce)', 'var(--color-chart-secondary, #9581c4)', 'var(--color-chart-primary, #7194d6)', 'var(--color-warning, #d3a064)', 'var(--color-chart-secondary, #b67fc3)', 'var(--color-success, #4e9e80)', 'var(--color-danger, #bf818a)']
 export default function Pipeline({ leads, onEdit, onAdd, onUpdate, canEdit = true }: { leads: Lead[]; onEdit: (lead: Lead) => void; onAdd: (status?: LeadStatus) => void; onUpdate: (lead: Lead) => void | Promise<void>; canEdit?: boolean }) {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'board' | 'list'>('board')

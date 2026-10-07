@@ -1,0 +1,1198 @@
+/* Authenticated administration only. The public and demo styles stay unchanged. */
+.crm-visual .ad-page {
+  min-width: 0;
+  gap: 24px;
+  color: var(--color-text-primary);
+  font-family: 'DM Sans Variable', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.crm-visual .ad-page .panel,
+.crm-visual .ad-metrics .stat-card {
+  min-width: 0;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.crm-visual .ad-context {
+  padding: 24px;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.crm-visual .ad-context-title {
+  min-width: 0;
+  gap: 14px;
+}
+
+.crm-visual .ad-context-title > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-context-title strong {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.crm-visual .ad-context-title small {
+  max-width: none;
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.crm-visual .ad-context-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-radius: var(--radius-md);
+}
+
+.crm-visual .ad-tabs {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  border-color: var(--color-border);
+  scrollbar-width: thin;
+}
+
+.crm-visual .ad-tabs button {
+  min-height: 46px;
+  padding: 12px 16px;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.crm-visual .ad-tabs button.active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.crm-visual .ad-tabs button:hover {
+  color: var(--color-text-primary);
+}
+
+.crm-visual .ad-tabs svg {
+  width: 16px;
+  height: 16px;
+}
+
+.crm-visual .ad-metrics {
+  gap: 20px;
+}
+
+.crm-visual .ad-metrics .stat-card {
+  padding: 24px;
+}
+
+.crm-visual .ad-metrics .stat-label {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.crm-visual .ad-metrics > .stat-card > strong {
+  margin: 14px 0 8px;
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 36px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1.3px;
+  line-height: 1.2;
+}
+
+.crm-visual .ad-metrics > .stat-card > small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-page .panel-header {
+  padding: 24px;
+  gap: 20px;
+}
+
+.crm-visual .ad-page .panel-header > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-page .panel-header h2 {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -.35px;
+  line-height: 1.4;
+}
+
+.crm-visual .ad-page .panel-header p {
+  margin-top: 7px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-page .panel-header > svg,
+.crm-visual .ad-muted-icon {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.crm-visual .ad-toolbar {
+  padding: 0 24px 24px;
+  gap: 16px;
+}
+
+.crm-visual .ad-search {
+  min-width: 0;
+  max-width: 400px;
+  min-height: 44px;
+  padding: 10px 14px;
+  gap: 10px;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-search input {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-search input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.crm-visual .ad-search:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.crm-visual .ad-refresh {
+  min-height: 36px;
+  padding: 8px;
+  gap: 7px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.crm-visual .ad-refresh:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.crm-visual .ad-loading {
+  min-height: 200px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.crm-visual .ad-table-scroll {
+  position: relative;
+  min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.crm-visual .ad-page .data-table thead {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-page .data-table th {
+  padding: 13px 24px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: .025em;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-page .data-table td {
+  padding: 18px 24px;
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-page .data-table tbody tr:hover {
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .ad-client-table {
+  min-width: 900px;
+}
+
+.crm-visual .ad-client-table th:nth-child(4),
+.crm-visual .ad-client-table td:nth-child(4) {
+  text-align: right;
+}
+
+.crm-visual .ad-member-table {
+  min-width: 820px;
+}
+
+.crm-visual .ad-invitation-table {
+  min-width: 1100px;
+}
+
+.crm-visual .ad-identity {
+  gap: 12px;
+}
+
+.crm-visual .ad-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.crm-visual .ad-identity > div > strong,
+.crm-visual .ad-invitation-person strong {
+  max-width: 260px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-identity small,
+.crm-visual .ad-invitation-person small {
+  max-width: 260px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-you {
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.crm-visual .ad-status {
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.crm-visual .ad-status-active {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.crm-visual .ad-status-trial {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.crm-visual .ad-status-past_due {
+  background: var(--color-warning-soft, var(--color-surface-raised));
+  color: var(--color-warning);
+}
+
+.crm-visual .ad-status-suspended,
+.crm-visual .ad-status-cancelled {
+  background: var(--color-danger-soft, var(--color-surface-raised));
+  color: var(--color-danger);
+}
+
+.crm-visual .ad-table-action {
+  min-height: 36px;
+  padding: 7px 9px;
+  gap: 7px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crm-visual .ad-table-action:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.crm-visual .ad-danger-action {
+  color: var(--color-danger);
+}
+
+.crm-visual .ad-danger-action:hover {
+  background: var(--color-danger-soft, var(--color-surface-raised));
+  color: var(--color-danger);
+}
+
+.crm-visual .ad-table-action:disabled {
+  background: transparent;
+  color: var(--color-text-secondary);
+  opacity: .5;
+}
+
+.crm-visual .ad-invitation-actions {
+  gap: 4px;
+}
+
+.crm-visual .ad-invitation-accepted {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-team-overview {
+  min-width: 0;
+  padding: 4px 0;
+  gap: 20px;
+}
+
+.crm-visual .ad-team-overview > div {
+  min-width: 0;
+  gap: 12px;
+}
+
+.crm-visual .ad-overview-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-team-overview strong {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.crm-visual .ad-team-overview small,
+.crm-visual .ad-seat-note {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-seat-note {
+  margin-top: -12px;
+  padding: 0;
+}
+
+.crm-visual .ad-member-table .ad-role-editor select {
+  min-width: 160px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.crm-visual .ad-member-table .ad-role-editor select:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  opacity: .75;
+}
+
+.crm-visual .ad-save-role {
+  min-height: 36px;
+  padding: 7px 9px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.crm-visual .ad-protected-label {
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-role-guide {
+  padding: 20px 24px;
+  gap: 20px;
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .ad-role-guide > span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.crm-visual .ad-role-guide b {
+  margin-bottom: 5px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.crm-visual .ad-notice,
+.crm-visual .ad-error {
+  min-width: 0;
+  padding: 14px 16px;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-notice {
+  background: var(--color-success-soft);
+  border-color: transparent;
+  color: var(--color-success);
+}
+
+.crm-visual .ad-error {
+  background: var(--color-danger-soft, var(--color-surface-raised));
+  border-color: transparent;
+  color: var(--color-danger);
+}
+
+.crm-visual .ad-notice > svg,
+.crm-visual .ad-error > svg {
+  flex-shrink: 0;
+}
+
+.crm-visual .ad-notice > button,
+.crm-visual .ad-error > button {
+  min-height: 32px;
+  padding: 5px;
+  color: inherit;
+  font-size: 12px;
+}
+
+.crm-visual .ad-link-card {
+  padding: 24px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.crm-visual .ad-link-card > div:first-child {
+  gap: 12px;
+  color: var(--color-primary);
+}
+
+.crm-visual .ad-link-card > div:first-child > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-link-card strong {
+  color: var(--color-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-link-card p {
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.crm-visual .ad-link-actions {
+  margin-top: 18px;
+  gap: 10px;
+}
+
+.crm-visual .ad-link-actions input {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-link-card > small {
+  margin-top: 12px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.crm-visual .ad-icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-icon-button:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.crm-visual .ad-empty,
+.crm-visual .ad-small-empty {
+  padding: 48px 24px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.crm-visual .ad-empty > svg,
+.crm-visual .ad-small-empty > svg {
+  margin-bottom: 14px;
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-empty h3 {
+  margin-bottom: 8px;
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.crm-visual .ad-plan-summary {
+  padding: 8px 24px 28px;
+  gap: 24px;
+}
+
+.crm-visual .ad-plan-summary .eyebrow {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: .08em;
+}
+
+.crm-visual .ad-plan-summary > div:first-child > strong {
+  margin: 10px 0 8px;
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -.9px;
+  line-height: 1.25;
+}
+
+.crm-visual .ad-plan-summary p {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.crm-visual .ad-plan-summary small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-plan-form {
+  padding: 28px 24px;
+  border-color: var(--color-border);
+}
+
+.crm-visual .ad-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.crm-visual .ad-form-grid label,
+.crm-visual .ad-modal-fields label,
+.crm-visual .ad-owner-select,
+.crm-visual .ad-delete-confirmation {
+  min-width: 0;
+  gap: 9px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-form-grid input,
+.crm-visual .ad-form-grid select,
+.crm-visual .ad-modal-fields input,
+.crm-visual .ad-modal-fields select,
+.crm-visual .ad-owner-select select,
+.crm-visual .ad-delete-confirmation input {
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  padding: 10px 13px;
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-form-grid input::placeholder,
+.crm-visual .ad-modal-fields input::placeholder,
+.crm-visual .ad-delete-confirmation input::placeholder {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  opacity: 1;
+}
+
+.crm-visual .ad-form-grid label > small {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-select-field select {
+  padding-right: 40px;
+}
+
+.crm-visual .ad-select-field svg {
+  right: 14px;
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-billing-note,
+.crm-visual .ad-form-help {
+  padding: 16px;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+.crm-visual .ad-billing-note > svg,
+.crm-visual .ad-form-help > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-billing-note p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.crm-visual .ad-customer-billing {
+  margin: 0 24px 24px;
+}
+
+.crm-visual .ad-audit-list {
+  padding: 0 24px 8px;
+}
+
+.crm-visual .ad-audit-entry {
+  padding: 20px 0;
+  gap: 14px;
+  border-color: var(--color-border);
+}
+
+.crm-visual .ad-audit-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-audit-entry > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-audit-entry strong {
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-audit-entry small,
+.crm-visual .ad-audit-entry time {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-company-sections {
+  gap: 24px;
+}
+
+.crm-visual .ad-company-form,
+.crm-visual .ad-company-body,
+.crm-visual .ad-delete-confirmation {
+  padding: 0 24px 24px;
+}
+
+.crm-visual .ad-company-body > p,
+.crm-visual .ad-restricted p {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.crm-visual .ad-company-body .ad-company-help {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.crm-visual .ad-company-body strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.crm-visual .ad-owner-select {
+  max-width: 480px;
+}
+
+.crm-visual .ad-danger-panel {
+  border-color: var(--color-border);
+}
+
+.crm-visual .ad-danger-panel .panel-header > svg {
+  color: var(--color-danger);
+}
+
+.crm-visual .ad-restricted {
+  padding: 48px 24px;
+  color: var(--color-text-secondary);
+}
+
+.crm-visual .ad-restricted h2 {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.crm-visual .ad-modal-backdrop {
+  padding: 24px;
+  background: var(--color-overlay);
+  backdrop-filter: blur(6px);
+}
+
+.crm-visual .ad-modal {
+  width: 620px;
+  max-height: min(90vh, 900px);
+  border-color: var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-modal);
+  color: var(--color-text-primary);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.crm-visual .ad-modal-header {
+  padding: 24px;
+  gap: 14px;
+  align-items: flex-start;
+  border-color: var(--color-border);
+}
+
+.crm-visual .ad-modal-header > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-modal-header h2 {
+  color: var(--color-text-primary);
+  font-family: 'Manrope Variable', sans-serif;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -.5px;
+  line-height: 1.35;
+}
+
+.crm-visual .ad-modal-header p {
+  margin-top: 7px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-modal-fields {
+  padding: 28px 24px;
+  gap: 24px;
+}
+
+.crm-visual .ad-modal-footer {
+  padding: 20px 24px;
+  gap: 10px;
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .ad-modal > .ad-error {
+  margin: 20px 24px 0;
+}
+
+.crm-visual .ad-confirm-body > p {
+  padding: 24px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.crm-visual .ad-confirm-body strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.crm-visual .ad-page .button {
+  min-height: 42px;
+  padding: 10px 16px;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.crm-visual .ad-page .button-primary {
+  border-color: var(--color-primary-solid);
+  background: var(--color-primary-solid);
+  box-shadow: none;
+  color: var(--color-on-primary);
+}
+
+.crm-visual .ad-page .button-primary:hover {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.crm-visual .ad-page .button-secondary {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  box-shadow: none;
+  color: var(--color-text-primary);
+}
+
+.crm-visual .ad-page .button-secondary:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.crm-visual .ad-page .button-danger {
+  border-color: var(--color-danger-solid);
+  background: var(--color-danger-solid);
+  color: var(--color-on-primary);
+  box-shadow: none;
+}
+
+.crm-visual .ad-page .button-danger:hover {
+  border-color: var(--color-danger-solid);
+  background: var(--color-danger-solid);
+  filter: brightness(.95);
+}
+
+.crm-visual .ad-page .button-danger-light {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+  box-shadow: none;
+}
+
+.crm-visual .ad-page .button-danger-light:hover {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft, var(--color-surface-raised));
+}
+
+.crm-visual .ad-page button:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: none;
+}
+
+.crm-visual .ad-page button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.crm-visual .ad-page input:focus-visible,
+.crm-visual .ad-page select:focus-visible {
+  outline: 0;
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
+}
+
+@media (max-width: 1000px) {
+  .crm-visual .ad-context {
+    flex-wrap: wrap;
+  }
+
+  .crm-visual .ad-context-title small {
+    max-width: none;
+  }
+
+  .crm-visual .ad-role-guide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-visual .ad-audit-entry time {
+    padding-left: 52px;
+  }
+}
+
+@media (max-width: 680px) {
+  .crm-visual .ad-page,
+  .crm-visual .ad-company-sections {
+    gap: 20px;
+  }
+
+  .crm-visual .ad-context,
+  .crm-visual .ad-link-card,
+  .crm-visual .ad-metrics .stat-card {
+    padding: 20px;
+  }
+
+  .crm-visual .ad-context-title strong {
+    font-size: 19px;
+  }
+
+  .crm-visual .ad-context-title small {
+    font-size: 13px;
+  }
+
+  .crm-visual .ad-tabs {
+    gap: 0;
+  }
+
+  .crm-visual .ad-tabs button {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .crm-visual .ad-metrics {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .crm-visual .ad-metrics > .stat-card > strong {
+    margin: 12px 0 7px;
+    font-size: 34px;
+  }
+
+  .crm-visual .ad-page .panel-header {
+    flex-wrap: wrap;
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .crm-visual .ad-toolbar {
+    padding: 0 20px 20px;
+    gap: 8px;
+  }
+
+  .crm-visual .ad-refresh {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+
+  .crm-visual .ad-search {
+    padding: 10px 12px;
+  }
+
+  .crm-visual .ad-search input {
+    font-size: 16px;
+  }
+
+  .crm-visual .ad-page .data-table th,
+  .crm-visual .ad-page .data-table td {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .crm-visual .ad-team-overview {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .crm-visual .ad-team-overview > div {
+    flex: 1 1 100%;
+  }
+
+  .crm-visual .ad-team-overview strong {
+    font-size: 16px;
+  }
+
+  .crm-visual .ad-team-overview small,
+  .crm-visual .ad-seat-note {
+    font-size: 13px;
+  }
+
+  .crm-visual .ad-role-guide {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .crm-visual .ad-plan-summary {
+    flex-wrap: wrap;
+    padding: 4px 20px 24px;
+    gap: 18px;
+  }
+
+  .crm-visual .ad-plan-summary > div:last-child {
+    max-width: none;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .crm-visual .ad-plan-summary > div:first-child > strong {
+    font-size: 30px;
+  }
+
+  .crm-visual .ad-plan-form {
+    padding: 24px 20px;
+  }
+
+  .crm-visual .ad-form-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .crm-visual .ad-customer-billing {
+    margin: 0 20px 20px;
+  }
+
+  .crm-visual .ad-audit-list {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .crm-visual .ad-audit-entry strong {
+    font-size: 14px;
+  }
+
+  .crm-visual .ad-notice,
+  .crm-visual .ad-error {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    font-size: 14px;
+  }
+
+  .crm-visual .ad-notice > button,
+  .crm-visual .ad-error > button {
+    margin-left: auto;
+  }
+
+  .crm-visual .ad-link-actions {
+    flex-wrap: wrap;
+  }
+
+  .crm-visual .ad-link-actions input {
+    flex-basis: 100%;
+    font-size: 14px;
+  }
+
+  .crm-visual .ad-company-form,
+  .crm-visual .ad-company-body,
+  .crm-visual .ad-delete-confirmation {
+    padding: 0 20px 24px;
+  }
+
+  .crm-visual .ad-company-body > .button {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .crm-visual .ad-modal-backdrop {
+    padding: 12px;
+  }
+
+  .crm-visual .ad-modal {
+    max-height: calc(100dvh - 24px);
+  }
+
+  .crm-visual .ad-modal-header {
+    padding: 22px 20px;
+    gap: 12px;
+  }
+
+  .crm-visual .ad-modal-header h2 {
+    font-size: 19px;
+  }
+
+  .crm-visual .ad-modal-header p {
+    font-size: 13px;
+  }
+
+  .crm-visual .ad-modal-fields {
+    padding: 24px 20px;
+    gap: 22px;
+  }
+
+  .crm-visual .ad-modal-fields input,
+  .crm-visual .ad-modal-fields select,
+  .crm-visual .ad-form-grid input,
+  .crm-visual .ad-form-grid select,
+  .crm-visual .ad-owner-select select,
+  .crm-visual .ad-delete-confirmation input {
+    font-size: 16px;
+  }
+
+  .crm-visual .ad-modal-footer {
+    flex-wrap: wrap;
+    padding: 18px 20px;
+  }
+
+  .crm-visual .ad-modal-footer .button {
+    flex: 1 1 auto;
+    min-height: 44px;
+    padding: 10px 14px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .crm-visual .ad-invitation-footer > .button {
+    flex-basis: 100%;
+  }
+
+  .crm-visual .ad-modal > .ad-error {
+    margin: 20px 20px 0;
+  }
+
+  .crm-visual .ad-confirm-body > p {
+    padding: 24px 20px;
+  }
+}
