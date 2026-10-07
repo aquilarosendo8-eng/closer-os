@@ -238,6 +238,60 @@ test('a rejected implicit callback cannot create an authenticated password-chang
   expect(await page.evaluate(key => localStorage.getItem(key), storageKey)).toBeNull()
 })
 
+test('email activation preserves the company invitation when reloading after defining a password', async ({ page }) => {
+  const state = await mockSupabase(page, { noMembership: true })
+  const saved = session()
+  const fragment = new URLSearchParams({ access_token: saved.access_token, refresh_token: saved.refresh_token,
+    token_type: saved.token_type, expires_in: String(saved.expires_in), expires_at: String(saved.expires_at), type: 'invite' })
+  await page.goto(`/?invite=${invitationToken}&flow=activate#${fragment}`)
+  await expect(page.getByRole('heading', { name: 'Uma nova senha. Um novo começo.' })).toBeVisible()
+  await page.getByLabel('Nova senha', { exact: true }).fill('senha exclusiva para convite')
+  await page.getByLabel('Confirmar senha', { exact: true }).fill('senha exclusiva para convite')
+  await page.getByRole('button', { name: 'Salvar nova senha', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Aceitar convite', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(url => url.searchParams.get('invite') === invitationToken && !url.searchParams.has('flow') && !url.hash)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Aceitar convite', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Nova senha', { exact: true })).toHaveCount(0)
+  expect(state.requests.filter(request => request.path === '/rest/v1/leads')).toHaveLength(0)
+  expect(state.requests.some(request => request.path === '/rest/v1/rpc/list_invitation_preview' && (request.body as { p_token: string }).p_token === invitationToken)).toBe(true)
+})
+
+test('an existing account verifies an email magic link and accepts an invitation without replacing its password', async ({ page }) => {
+  const state = await mockSupabase(page, { noMembership: true })
+  const saved = session()
+  const fragment = new URLSearchParams({ access_token: saved.access_token, refresh_token: saved.refresh_token,
+    token_type: saved.token_type, expires_in: String(saved.expires_in), expires_at: String(saved.expires_at), type: 'magiclink' })
+  await page.goto(`/?invite=${invitationToken}#${fragment}`)
+  await expect(page.getByRole('button', { name: 'Aceitar convite', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Nova senha', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Senha', { exact: true })).toHaveCount(0)
+  expect(state.requests.some(request => request.path === '/auth/v1/user' && request.method === 'GET')).toBe(true)
+  await page.getByLabel('Seu nome', { exact: true }).fill('Pessoa convidada')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Aceitar convite', exact: true }).click()
+  await expect.poll(() => state.requests.filter(request => request.path === '/rest/v1/rpc/accept_invitation').length).toBe(1)
+  expect(state.requests.filter(request => request.path === '/auth/v1/user' && request.method === 'PUT').some(request => Boolean((request.body as { password?: string })?.password))).toBe(false)
+})
+
+test('the company selected by a completed invitation survives reload without granting access to an unrelated ID', async ({ page }) => {
+  const state = await mockSupabase(page, { authenticated: true, twoWorkspaces: true })
+  await page.goto(`/?workspace=${workspaceB}`)
+  await expect(page.getByLabel('Selecionar empresa')).toHaveValue(workspaceB)
+  await expect(page.locator('.stat-card').filter({ has: page.getByText('Faturamento', { exact: true }) }).locator('.stat-value')).toHaveText(/R\$\s*7\.500/)
+  expect(state.requests.filter(request => request.path === '/rest/v1/leads').every(request => request.query.includes(workspaceB))).toBe(true)
+  await page.reload()
+  await expect(page.getByLabel('Selecionar empresa')).toHaveValue(workspaceB)
+  await page.getByLabel('Selecionar empresa').selectOption(workspaceA)
+  await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspaceA)
+  await page.reload()
+  await expect(page.getByLabel('Selecionar empresa')).toHaveValue(workspaceA)
+  const count = state.requests.length
+  await page.goto('/?workspace=00000000-0000-4000-8000-000000000099')
+  await expect(page.getByLabel('Selecionar empresa')).toHaveValue(workspaceA)
+  expect(state.requests.slice(count).filter(request => request.path === '/rest/v1/leads').every(request => request.query.includes(workspaceA))).toBe(true)
+})
+
 test('invalid invitation tokens are blocked before any invitation RPC', async ({ page }) => {
   const state = await mockSupabase(page)
   await page.goto('/?invite=invalid-token')
@@ -292,7 +346,7 @@ test('a confirmed invited account records policy acceptance before joining its c
   expect(membershipIndex).toBeGreaterThan(consentIndex)
   expect(state.requests[consentIndex].body).toEqual({ p_terms_version: '2026-10-06', p_privacy_version: '2026-10-06' })
   expect(state.requests[membershipIndex].body).toEqual({ p_token: invitationToken })
-  await expect(page).toHaveURL('/')
+  await expect(page).toHaveURL(url => url.searchParams.get('workspace') === workspaceA && !url.searchParams.has('invite'))
 })
 
 test('a suspended company never fetches CRM leads', async ({ page }) => {

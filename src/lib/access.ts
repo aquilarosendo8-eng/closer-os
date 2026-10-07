@@ -1,6 +1,6 @@
 import type { User } from '@supabase/supabase-js'
 import type { AdministrationService, AuditEntry, Invitation, Membership, PlatformWorkspace, Subscription, WorkspaceAccess, WorkspaceRole } from './access-types'
-import { applicationUrl, requireSupabase } from './supabase'
+import { requireSupabase } from './supabase'
 import { defaultSettings } from './data'
 
 type Row = Record<string, any>
@@ -25,7 +25,6 @@ export function subscriptionAllowsAccess(value: Subscription, now = new Date()):
 }
 const member = (row: Row): Membership => ({ userId: row.user_id, email: row.email || '', displayName: row.display_name || row.email || 'Usuário', role: row.role as WorkspaceRole, active: Boolean(row.is_active) })
 const invitation = (row: Row): Invitation => ({ id: row.id, email: row.email, role: row.role, expiresAt: row.expires_at, acceptedAt: row.accepted_at, revokedAt: row.revoked_at })
-const inviteUrl = (token: string) => { const url = new URL(applicationUrl()); url.searchParams.set('invite', token); return url.toString() }
 
 export interface AccessSnapshot { workspaces: WorkspaceAccess[]; isPlatformAdmin: boolean; displayName: string }
 export async function loadAccess(user: User): Promise<AccessSnapshot> {
@@ -84,8 +83,17 @@ export const administrationService: AdministrationService = {
     return (data || []).map(invitation)
   },
   async createInvitation(workspaceId, input) {
-    const { data, error } = await requireSupabase().rpc('invite_member', { p_workspace_id: workspaceId, p_email: input.email.trim().toLowerCase(), p_role: input.role }); assert(error)
-    return { invitation: invitation(data), url: inviteUrl(data.token) }
+    const { data: session, error } = await requireSupabase().auth.getSession(); assert(error)
+    if (!session.session) throw new Error('Entre novamente para enviar o convite.')
+    const response = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${session.session.access_token}` },
+      body: JSON.stringify({ workspaceId, email: input.email.trim().toLowerCase(), role: input.role }),
+    })
+    const result = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : result?.error?.message || 'Não foi possível enviar o convite por e-mail. Tente novamente.')
+    if (!result?.invitation?.id || !result.url || result.emailSent !== true) throw new Error('Não recebemos a confirmação do envio. Atualize a lista de convites antes de tentar novamente.')
+    return { invitation: invitation(result.invitation), url: result.url, emailSent: true }
   },
   async revokeInvitation(workspaceId, invitationId) {
     const { error } = await requireSupabase().rpc('revoke_invitation', { p_workspace_id: workspaceId, p_invitation_id: invitationId }); assert(error)
@@ -104,9 +112,9 @@ export const administrationService: AdministrationService = {
     if (!workspaceId) throw new Error('Não foi possível criar a empresa.')
     try {
       const result = await this.createInvitation(workspaceId, { email: input.ownerEmail, role: 'admin' })
-      return { id: workspaceId, invitationUrl: result.url }
+      return { id: workspaceId, invitationUrl: result.url, emailSent: true }
     } catch (error) {
-      throw new Error(`A empresa foi criada, mas o convite não foi gerado. Selecione-a e tente convidar o administrador novamente. ${error instanceof Error ? error.message : ''}`)
+      throw Object.assign(new Error(`A empresa foi criada, mas não foi possível enviar o convite. Selecione-a e tente convidar o administrador novamente. ${error instanceof Error ? error.message : ''}`), { workspaceId })
     }
   },
   async updateSubscription(workspaceId, changes) {

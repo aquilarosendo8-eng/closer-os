@@ -79,11 +79,11 @@ export interface AdministrationService {
   listMembers(workspaceId: string): Promise<Membership[]>
   updateMember(workspaceId: string, userId: string, changes: MemberUpdate): Promise<void>
   listInvitations(workspaceId: string): Promise<Invitation[]>
-  createInvitation(workspaceId: string, input: { email: string; role: WorkspaceRole }): Promise<{ invitation: Invitation; url: string }>
+  createInvitation(workspaceId: string, input: { email: string; role: WorkspaceRole }): Promise<{ invitation: Invitation; url: string; emailSent: true }>
   revokeInvitation(workspaceId: string, invitationId: string): Promise<void>
   listAudit(workspaceId: string): Promise<AuditEntry[]>
   listPlatformWorkspaces(): Promise<PlatformWorkspace[]>
-  createWorkspace(input: { name: string; ownerEmail: string; ownerName?: string }): Promise<{ id: string; invitationUrl: string }>
+  createWorkspace(input: { name: string; ownerEmail: string; ownerName?: string }): Promise<{ id: string; invitationUrl: string; emailSent: true }>
   updateSubscription(workspaceId: string, changes: SubscriptionUpdate): Promise<void>
   getWorkspacePrivacy(workspaceId: string): Promise<WorkspacePrivacy>
   updateWorkspacePrivacy(workspaceId: string, values: WorkspacePrivacy): Promise<void>

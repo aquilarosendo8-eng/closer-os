@@ -17,7 +17,8 @@ export const cloudConfigured = Boolean(url && key && isPublicSupabaseKey(key))
 // implicit callback. Its tokens still go through Auth's server-side getUser
 // verification; the fragment itself never grants account or workspace access.
 const callback = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.hash.slice(1))
-const implicitEmailCallback = ['invite', 'recovery'].includes(callback.get('type') || '')
+const emailInvitation = typeof window !== 'undefined' && /^[a-f0-9]{64}$/i.test(new URLSearchParams(window.location.search).get('invite') || '')
+const implicitEmailCallback = (['invite', 'recovery'].includes(callback.get('type') || '') || callback.get('type') === 'magiclink' && emailInvitation)
   && Boolean(callback.get('access_token') && callback.get('refresh_token'))
 export const supabase: SupabaseClient | null = cloudConfigured ? createClient(url, key, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: implicitEmailCallback ? 'implicit' : 'pkce' },

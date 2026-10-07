@@ -31,7 +31,7 @@ export default function SaaSApp() {
   const [notice, setNotice] = useState('')
   const [authMode, setAuthMode] = useState<AuthMode>('login')
   const [passwordRequired, setPasswordRequired] = useState(activationFlow)
-  const [selectedWorkspace, setSelectedWorkspace] = useState('')
+  const [selectedWorkspace, setSelectedWorkspace] = useState(() => new URLSearchParams(window.location.search).get('workspace') || '')
   const [adminOpen, setAdminOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [invite, setInvite] = useState<{ email: string; workspaceName: string; expiresAt: string } | null>(null)
@@ -116,8 +116,10 @@ export default function SaaSApp() {
     if (error) throw new Error(readableError(error))
     const { error: revokeError } = await requireSupabase().auth.signOut({ scope: 'others' })
     if (revokeError) throw new Error(readableError(revokeError))
-    setPasswordRequired(false); setNotice('Senha definida. Seu acesso está pronto.')
-    window.history.replaceState({}, '', applicationUrl())
+    setPasswordRequired(false); setNotice(invitedToken ? 'Senha definida. Conclua o convite para entrar na sua empresa.' : 'Senha definida. Seu acesso está pronto.')
+    const destination = new URL(applicationUrl())
+    if (invitedToken) destination.searchParams.set('invite', invitedToken)
+    window.history.replaceState({}, '', destination.toString())
     await refreshAccess()
   }
   const acceptInvitation = async (token: string, displayName: string, password?: string) => {
@@ -142,7 +144,9 @@ export default function SaaSApp() {
     if (acceptance.error) throw new Error(readableError(acceptance.error))
     const { data: id, error } = await client.rpc('accept_invitation', { p_token: token })
     if (error) throw new Error(readableError(error))
-    setSelectedWorkspace(id); setInvite(null); window.location.replace(applicationUrl())
+    setSelectedWorkspace(id); setInvite(null)
+    const destination = new URL(applicationUrl()); destination.searchParams.set('workspace', id)
+    window.location.replace(destination.toString())
   }
 
   if (isDemo) return <><div className="cloud-context-bar"><span>Demonstração local · os dados desta tela ficam neste navegador</span><a href={applicationUrl()}>Voltar ao acesso privado</a></div><App demo /></>
@@ -153,7 +157,7 @@ export default function SaaSApp() {
   if (!session) return <AuthScreen mode={authMode} onSignIn={signIn} onResetPassword={resetPassword} onForgotPassword={() => { setAuthMode('reset'); setError('') }} onBack={() => { setAuthMode('login'); setError('') }} error={error} notice={notice} legalContactEmail={legalContact} />
   if (accessLoading || (snapshotUserId !== session.user.id && !error)) return <div className="access-loading" role="status"><ShieldCheck size={28} /><p>Carregando suas empresas…</p></div>
 
-  const accountBar = <div className="cloud-context-bar"><span><Building2 size={15} />{snapshot.isPlatformAdmin ? 'Administração da plataforma' : workspace?.workspace.name || 'Sua conta'}</span><div>{snapshot.workspaces.length > 1 && <select aria-label="Selecionar empresa" value={workspace?.workspace.id} onChange={event => { setSelectedWorkspace(event.target.value); setAdminOpen(false); setAccountOpen(false) }}>{snapshot.workspaces.map(row => <option value={row.workspace.id} key={row.workspace.id}>{row.workspace.name}</option>)}</select>}{workspace && (adminOpen || accountOpen) && <button onClick={() => { setAdminOpen(false); setAccountOpen(false) }}>Voltar ao CRM</button>}{(workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin) && <button onClick={() => { setAdminOpen(true); setAccountOpen(false) }}>Administrar</button>}<button onClick={() => { setAccountOpen(true); setAdminOpen(false) }}>Minha conta</button><button onClick={() => void signOut().catch(cause => setError(readableError(cause)))}><LogOut size={14} />Sair</button></div></div>
+  const accountBar = <div className="cloud-context-bar"><span><Building2 size={15} />{snapshot.isPlatformAdmin ? 'Administração da plataforma' : workspace?.workspace.name || 'Sua conta'}</span><div>{snapshot.workspaces.length > 1 && <select aria-label="Selecionar empresa" value={workspace?.workspace.id} onChange={event => { setSelectedWorkspace(event.target.value); const destination = new URL(applicationUrl()); destination.searchParams.set('workspace', event.target.value); window.history.replaceState({}, '', destination.toString()); setAdminOpen(false); setAccountOpen(false) }}>{snapshot.workspaces.map(row => <option value={row.workspace.id} key={row.workspace.id}>{row.workspace.name}</option>)}</select>}{workspace && (adminOpen || accountOpen) && <button onClick={() => { setAdminOpen(false); setAccountOpen(false) }}>Voltar ao CRM</button>}{(workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin) && <button onClick={() => { setAdminOpen(true); setAccountOpen(false) }}>Administrar</button>}<button onClick={() => { setAccountOpen(true); setAdminOpen(false) }}>Minha conta</button><button onClick={() => void signOut().catch(cause => setError(readableError(cause)))}><LogOut size={14} />Sair</button></div></div>
   if (!accountOpen && ((adminOpen && (workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin)) || (snapshot.isPlatformAdmin && !workspace))) return <>{accountBar}<div className="administration-shell"><Administration access={workspace} isPlatformAdmin={snapshot.isPlatformAdmin} service={administrationService} onAccessChange={() => { void refreshAccess(); void data.refresh() }} /></div></>
 
   if (!workspace || !allowed || error || accountOpen) return <>{accountBar}<main className="account-state"><ShieldCheck size={34} /><h1>{error ? 'Não conseguimos verificar seu acesso' : !workspace && !snapshot.isPlatformAdmin ? 'Sua conta aguarda um convite' : workspace && !allowed ? 'O acesso desta empresa está pausado' : 'Sua conta'}</h1><p>{error || (!workspace ? snapshot.isPlatformAdmin ? `Administrador da plataforma · ${session.user.email}` : 'Peça ao administrador o link de convite para a sua empresa. Ter uma conta não libera acesso aos dados de outros clientes.' : !allowed ? 'Consulte o administrador para verificar o plano e retomar o acesso ao CRM. Seus dados não foram apagados.' : `${workspace.membership.displayName} · ${workspace.membership.email} · Perfil: ${workspace.membership.role}`)}</p><div className="account-state-actions"><button className="button button-secondary" onClick={() => { setAccessLoading(true); void refreshAccess() }}><RefreshCw size={15} />Atualizar acesso</button><button className="button button-secondary" onClick={() => { setPasswordRequired(true); setAdminOpen(false); setAccountOpen(false) }}>Alterar minha senha</button>{workspace?.membership.role === 'admin' && <button className="button button-secondary" onClick={async () => { try { downloadJson(`closer-os-empresa-${workspace.workspace.id}.json`, await administrationService.exportWorkspace(workspace.workspace.id)) } catch (cause) { setError(readableError(cause)) } }}>Exportar dados da empresa</button>}</div></main></>
