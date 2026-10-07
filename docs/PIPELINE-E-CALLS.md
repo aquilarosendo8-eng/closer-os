@@ -49,6 +49,10 @@ A publicação da Vercel executa o provisionador existente, que verifica os chec
 
 Verificação local em 07/10/2026: build aprovado; 123 testes unitários; 90 E2E (10 CRM, 44 SaaS/Admin, 15 temas e 21 funcionalidades); 321 verificações de banco (incluindo backfill real anterior à migration e isolamento); 11 verificações do provisionador em PostgreSQL descartável. Todos aprovados. A migration `004` foi validada com o checksum `e23342df65ca7004d34276060b5023bfa500c0c96325261fb6b224476ac3eb44`.
 
+Verificação em produção em 07/10/2026: migration `004` aplicada e publicação pronta em https://closer-os-rho-three.vercel.app/. A comparação com o estado anterior confirmou a preservação das seis empresas e dos quatro leads existentes, incluindo conteúdo, responsáveis e timestamps, com o vínculo correto às etapas. As 87 verificações reais de Supabase/Auth/RLS passaram, assim como os 12 checkpoints de navegação no CRM publicado com admin, manager, closer e viewer.
+
+O teste no navegador confirmou configuração e transições do pipeline, atualização do faturamento, pós-call, gravação HTTPS, feedback e nota zero da liderança, autoria/data do servidor, filtros, restrições de edição, abertura segura da gravação, temas persistentes e modais em desktop/mobile. Não houve erros do navegador. Todas as contas e empresas temporárias foram removidas, incluindo suas etapas, leads e avaliações; os dados dos clientes existentes permaneceram intactos.
+
 ## Arquivos da implementação
 
 - Banco: migration `004`; `supabase/tests/{pre-pipeline-migration,post-pipeline-migration,pipeline-call-reviews}.sql`.
