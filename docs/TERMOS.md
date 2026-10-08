@@ -1,4 +1,4 @@
-# Modelo de termos de uso — Closer OS
+# Modelo de termos de uso — HIGH CLOSER
 
 **MODELO INCOMPLETO.** Preencha os campos entre colchetes e adapte as condições à operação real antes de oferecer o serviço. Este documento não estabelece preço, compromisso de disponibilidade ou condições contratuais em nome de uma empresa ainda não identificada. A tela de acesso também contém texto operacional provisório e deve ser atualizada com a versão aprovada.
 
@@ -8,7 +8,7 @@ Versão: [VERSÃO] — vigência: [DATA].
 
 O serviço é oferecido por [RAZÃO SOCIAL/NOME], [CNPJ/CPF APLICÁVEL], com endereço em [ENDEREÇO], canal comercial [CONTATO] e suporte [CANAL/HORÁRIO]. O contratante é a pessoa ou empresa identificada na proposta aceita. Complete [FORMA DE ACEITE, DOCUMENTO CONTRATUAL E RESPONSÁVEIS].
 
-O Closer OS organiza leads, reuniões e indicadores de vendas. Os recursos e limites de cada plano constam em [URL/PROPOSTA]. O histórico registra os campos de call de um lead; esta versão não oferece gravação/transcrição, checkout financeiro, calendário ou WhatsApp integrado. As sugestões de análise usam regras locais e devem ser revisadas pelo usuário.
+O HIGH CLOSER organiza leads, reuniões e indicadores de vendas. Os recursos e limites de cada plano constam em [URL/PROPOSTA]. O histórico registra os campos de call de um lead; esta versão não oferece gravação/transcrição, checkout financeiro, calendário ou WhatsApp integrado. As sugestões de análise usam regras locais e devem ser revisadas pelo usuário.
 
 ## Contas e acesso
 

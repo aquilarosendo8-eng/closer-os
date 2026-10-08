@@ -160,7 +160,7 @@ test('CSV exports the selected period and backup includes all records', async ({
   const csvPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar relatório' }).click()
   const csv = await csvPromise
-  expect(csv.suggestedFilename()).toMatch(/^closer-os-.*\.csv$/)
+  expect(csv.suggestedFilename()).toMatch(/^high-closer-.*\.csv$/)
   const csvContent = await readFile((await csv.path())!, 'utf8')
   expect(csvContent).toContain('"Valor fechado"')
   expect(csvContent).toContain('"Mariana Costa"')

@@ -1,4 +1,4 @@
-# Comercialização do Closer OS
+# Comercialização do HIGH CLOSER
 
 Este documento organiza a operação comercial da versão do repositório. Não representa contratação de serviços, ativação de pagamentos, garantia jurídica ou confirmação de que o ambiente de produção passou pelas verificações.
 

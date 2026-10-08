@@ -1,4 +1,4 @@
-# Modelo de política de privacidade — Closer OS
+# Modelo de política de privacidade — HIGH CLOSER
 
 **MODELO INCOMPLETO. Não publique como política definitiva.** O operador precisa preencher os campos entre colchetes, adaptar o texto à operação real e obter a revisão necessária antes de tratar dados de clientes. Este arquivo não substitui a análise jurídica nem confirma conformidade com a LGPD.
 
@@ -6,7 +6,7 @@ Versão: [VERSÃO] — última atualização: [DATA].
 
 ## Quem oferece o serviço
 
-O Closer OS é oferecido por **[RAZÃO SOCIAL/NOME DO RESPONSÁVEL]**, [CNPJ/CPF, CONFORME APLICÁVEL], com endereço em [ENDEREÇO]. O contato para assuntos de privacidade e direitos de titulares é [EMAIL/CANAL]. O encarregado, quando aplicável, pode ser contatado por [NOME E CONTATO OU INFORMAÇÃO SOBRE A DISPENSA APLICÁVEL].
+O HIGH CLOSER é oferecido por **[RAZÃO SOCIAL/NOME DO RESPONSÁVEL]**, [CNPJ/CPF, CONFORME APLICÁVEL], com endereço em [ENDEREÇO]. O contato para assuntos de privacidade e direitos de titulares é [EMAIL/CANAL]. O encarregado, quando aplicável, pode ser contatado por [NOME E CONTATO OU INFORMAÇÃO SOBRE A DISPENSA APLICÁVEL].
 
 Para os dados de conta, relacionamento comercial, cobrança e segurança que tratamos para nossas próprias finalidades, atuamos como controlador conforme a operação descrita aqui.
 

@@ -7,6 +7,7 @@ import './styles.css'
 import './visual-system.css'
 import './components/administration-theme.css'
 import './components/calls-performance-theme.css'
+import './components/brand.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode><SaaSApp /></React.StrictMode>,

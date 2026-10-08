@@ -125,7 +125,7 @@ test('company admin can save privacy and download company JSON; revoked invitati
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar dados da empresa', exact: true }).click()
   const download = await downloadPromise
-  expect(download.suggestedFilename()).toMatch(/^closer-os-empresa-\d{4}-\d{2}-\d{2}\.json$/)
+  expect(download.suggestedFilename()).toMatch(/^high-closer-empresa-\d{4}-\d{2}-\d{2}\.json$/)
   const stream = await download.createReadStream()
   if (!stream) throw new Error('A exportação não gerou um arquivo.')
   const chunks: Buffer[] = []

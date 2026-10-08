@@ -1,6 +1,10 @@
-# Closer OS
+# HIGH CLOSER
 
-CRM para closers high ticket, com dashboard, pipeline, avaliação de calls e evolução da equipe.
+**Sales Performance System**
+
+High Closer é um Sales Performance System para operações que vendem por call, unindo CRM, pipeline, pós-call, performance e desenvolvimento comercial.
+
+Identidade e referências técnicas preservadas: [rebranding](docs/REBRANDING.md). Modelos visuais e assuntos de e-mail: [templates Auth](emails/auth/README.md).
 
 Aplicação publicada: **https://closer-os-rho-three.vercel.app/**. O acesso aos dados de clientes exige login, empresa autorizada e assinatura válida. A demonstração pública em `?demo=1` usa armazenamento separado, sem ler os leads pessoais da versão anterior.
 

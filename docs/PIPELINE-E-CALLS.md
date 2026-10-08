@@ -1,6 +1,6 @@
 # Pipeline por empresa e revisão de calls
 
-O Closer OS mantém um pipeline principal por empresa. Os registros antigos, o acesso privado, os papéis da equipe e os temas claro/escuro continuam compatíveis.
+O HIGH CLOSER mantém um pipeline principal por empresa. Os registros antigos, o acesso privado, os papéis da equipe e os temas claro/escuro continuam compatíveis.
 
 ## Pipeline personalizável
 

@@ -124,7 +124,7 @@ export function useCloudData(access: WorkspaceAccess | null) {
     await refresh()
   }
   const importLeads = async (leads: Lead[]) => {
-    if (!workspaceId || !userId || !leads.every(validLead)) throw new Error('Use um backup válido do Closer OS.')
+    if (!workspaceId || !userId || !leads.every(validLead)) throw new Error('Use um backup válido do HIGH CLOSER.')
     let imported = 0, skipped = 0
     try {
       for (let offset = 0; offset < leads.length; offset += 1000) {

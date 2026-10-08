@@ -1,4 +1,4 @@
-# Operação do Closer OS
+# Operação do HIGH CLOSER
 
 Este roteiro acompanha o código do repositório. A existência do código de nuvem não confirma que um projeto Supabase, suas políticas ou um deploy foram configurados. Registre a conclusão de cada etapa no seu ambiente antes de liberar clientes.
 

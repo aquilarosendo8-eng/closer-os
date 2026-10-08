@@ -1,4 +1,4 @@
-# Design visual e temas do Closer OS
+# Design visual e temas do HIGH CLOSER
 
 Atualização de 7 de outubro de 2026. O redesenho atua somente na área interna autenticada. Login, cadastro público, convites/ativação, documentos legais e demonstração mantêm sua apresentação anterior.
 

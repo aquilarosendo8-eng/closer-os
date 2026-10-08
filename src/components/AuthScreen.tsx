@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, Building2, Check, Download, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck, Sparkles, UsersRound, X } from 'lucide-react'
 import { readableError } from '../lib/supabase'
 import LegalPage, { type LegalDocument } from './LegalPage'
+import BrandLockup from './BrandLockup'
 import './auth.css'
 
 export type AuthMode = 'login' | 'reset' | 'set-password' | 'invite' | 'signup' | 'onboarding' | 'confirm' | 'expired' | 'activation-expired' | 'invite-error' | 'setup'
@@ -37,9 +38,9 @@ export interface AuthScreenProps {
 const content: Record<AuthMode, { eyebrow: string; title: string; description: string; action: string }> = {
   login: { eyebrow: 'SEU ESPAÇO DE VENDAS', title: 'Bom ter você de volta.', description: 'Entre para acompanhar suas oportunidades e o próximo fechamento.', action: 'Entrar no meu workspace' },
   reset: { eyebrow: 'RECUPERAR ACESSO', title: 'Vamos recuperar sua senha.', description: 'Informe seu e-mail para receber um link seguro de recuperação.', action: 'Enviar link de recuperação' },
-  'set-password': { eyebrow: 'PROTEJA SUA CONTA', title: 'Uma nova senha. Um novo começo.', description: 'Escolha uma senha exclusiva para sua conta no Closer OS.', action: 'Salvar nova senha' },
+  'set-password': { eyebrow: 'PROTEJA SUA CONTA', title: 'Uma nova senha. Um novo começo.', description: 'Escolha uma senha exclusiva para sua conta no HIGH CLOSER.', action: 'Salvar nova senha' },
   invite: { eyebrow: 'VOCÊ FOI CONVIDADO', title: 'Seu próximo nível começa aqui.', description: 'Complete seu acesso para entrar no workspace que convidou você.', action: 'Aceitar e entrar' },
-  signup: { eyebrow: 'COMECE SUA PRÓXIMA FASE', title: 'Seu CRM. Seu próximo nível.', description: 'Crie sua conta e organize suas vendas em uma empresa só sua. Confirme seu e-mail para começar.', action: 'Criar minha conta' },
+  signup: { eyebrow: 'COMECE SUA PRÓXIMA FASE', title: 'HIGH CLOSER. Seu próximo nível.', description: 'Crie sua conta e organize suas vendas em uma empresa só sua. Confirme seu e-mail para começar.', action: 'Criar minha conta' },
   onboarding: { eyebrow: 'SEU ESPAÇO, DO SEU JEITO', title: 'Vamos criar sua empresa.', description: 'Seu acesso foi confirmado. Dê um nome ao seu workspace e comece seu teste de 14 dias.', action: 'Criar meu workspace' },
   confirm: { eyebrow: 'FALTA SÓ UM PASSO', title: 'Confirme seu e-mail.', description: 'Abra o link de confirmação recebido no seu e-mail. Depois, volte aqui para criar seu workspace.', action: '' },
   'invite-error': { eyebrow: 'VERIFICAR SEU CONVITE', title: 'Vamos verificar seu acesso.', description: 'Não conseguimos verificar este convite agora. Tente novamente em alguns instantes.', action: '' },
@@ -69,7 +70,7 @@ function downloadLegacyBackup(): boolean {
   const url = URL.createObjectURL(new Blob([JSON.stringify(contents, null, 2)], { type: 'application/json' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = `closer-os-backup-local-${new Date().toISOString().slice(0, 10)}.json`
+  link.download = `high-closer-backup-local-${new Date().toISOString().slice(0, 10)}.json`
   document.body.appendChild(link)
   link.click()
   link.remove()
@@ -162,15 +163,15 @@ export default function AuthScreen({ mode = 'login', invitationToken, invitedEma
   }
 
   return <div className={`auth-shell auth-mode-${mode}`}>
-    <aside className="auth-story" aria-label="Sobre o Closer OS">
-      <a className="auth-brand" href="/" aria-label="Closer OS início"><span className="brand-mark"><span /><span /><span /></span><span>closer<span className="brand-os">os</span><i /></span></a>
-      <div className="auth-story-copy"><span className="auth-story-pill"><Sparkles size={14} /> PARA QUEM VENDE TRANSFORMAÇÃO</span><h1>Grandes vendas.<br />Um próximo nível<span>.</span></h1><p>Organize suas oportunidades, aprenda com cada call e transforme consistência em resultado.</p>
+    <aside className="auth-story" aria-label="Sobre o HIGH CLOSER">
+      <a className="auth-brand" href="/" aria-label="HIGH CLOSER início"><span className="brand-mark"><span /><span /><span /></span><BrandLockup /></a>
+      <div className="auth-story-copy"><span className="auth-story-pill"><Sparkles size={14} /> PARA QUEM VENDE TRANSFORMAÇÃO</span><h1>Grandes vendas.<br />Um próximo nível<span>.</span></h1><p>High Closer é um Sales Performance System para operações que vendem por call, unindo CRM, pipeline, pós-call, performance e desenvolvimento comercial.</p>
         <div className="auth-preview" aria-hidden="true"><div className="auth-preview-header"><span>Seu próximo fechamento</span><span className="auth-preview-dot" /></div><div className="auth-preview-value">Boas conversas.<br /><strong>Grandes resultados.</strong></div><div className="auth-preview-chart">{[27, 39, 33, 53, 44, 68, 60, 83, 73, 100].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div><div className="auth-preview-footer"><span><UsersRound size={13} /> Sua equipe, conectada</span><span><Check size={13} /> Seu ritmo, em evolução</span></div></div>
       </div>
       <div className="auth-story-footer"><ShieldCheck size={16} /><span>Dados separados por empresa. Acesso por permissão.</span></div>
     </aside>
     <main className="auth-main">
-      <div className="auth-mobile-brand"><span className="brand-mark"><span /><span /><span /></span><strong>closer<span>os</span></strong></div>
+      <div className="auth-mobile-brand"><span className="brand-mark"><span /><span /><span /></span><BrandLockup /></div>
       <section className="auth-card" aria-labelledby={`${id}-title`}>
         {mode !== 'login' && mode !== 'setup' && onBack && <button type="button" className="auth-back" onClick={onBack} disabled={pending}><ArrowLeft size={15} /> Voltar para entrar</button>}
         <span className="auth-card-icon">{mode === 'reset' || mode === 'set-password' ? <KeyRound size={24} /> : mode === 'invite' ? <UsersRound size={24} /> : <LockKeyhole size={24} />}</span>
@@ -202,7 +203,7 @@ export default function AuthScreen({ mode = 'login', invitationToken, invitedEma
         </form>}
         <footer className="auth-legal-links"><button type="button" onClick={() => setLegalDocument('terms')}>Termos de uso</button><span aria-hidden="true">·</span><button type="button" onClick={() => setLegalDocument('privacy')}>Privacidade</button></footer>
       </section>
-      <p className="auth-main-footer">Closer OS · Clareza para vender. Espaço para evoluir.</p>
+      <p className="auth-main-footer">HIGH CLOSER · Sales Performance System</p>
     </main>
     {legalDocument && <div className="auth-legal-backdrop" onClick={event => { if (event.target === event.currentTarget) setLegalDocument(null) }}><div ref={legalRef} className="auth-legal-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-legal-title"><button type="button" className="auth-legal-close" onClick={() => setLegalDocument(null)} aria-label="Fechar documento"><X size={20} /></button><LegalPage document={legalDocument} contactEmail={legalContactEmail} /></div></div>}
   </div>

@@ -1,0 +1,43 @@
+.brand-lockup {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  font-family: 'Manrope Variable', sans-serif;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+.brand-lockup strong {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .55px;
+  white-space: nowrap;
+}
+.brand-lockup small {
+  font-family: 'DM Sans Variable', sans-serif;
+  font-size: 9px;
+  font-weight: 450;
+  letter-spacing: .18px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: .8;
+}
+.brand > span.brand-lockup, .auth-brand > span.brand-lockup { align-items: flex-start; }
+.brand .brand-mark, .auth-brand .brand-mark, .auth-mobile-brand .brand-mark { flex-shrink: 0; }
+.auth-brand .brand-lockup strong { font-size: 26px; letter-spacing: .7px; }
+.auth-brand .brand-lockup small { font-size: 11px; }
+.auth-mobile-brand .brand-lockup strong { font-size: 21px; letter-spacing: .6px; }
+.auth-mobile-brand .brand-lockup small { font-size: 10px; }
+.cloud-context-bar > span { flex-wrap: wrap; min-width: 0; }
+.cloud-context-bar .brand-lockup { gap: 2px; flex-shrink: 0; }
+.cloud-context-bar .brand-lockup strong { font-size: 13px; }
+.cloud-context-bar .brand-lockup small { font-size: 9px; }
+.context-brand-divider { width: 1px; height: 28px; background: currentColor; opacity: .2; }
+.main-footer .tiny-brand { font-size: 9px; letter-spacing: -.4px; }
+@media (max-width: 760px) {
+  .cloud-context-bar > span { gap: 8px; }
+  .cloud-context-bar .brand-lockup strong { font-size: 12px; }
+  .context-brand-divider { height: 25px; }
+  .auth-main-footer { line-height: 1.7; }
+}

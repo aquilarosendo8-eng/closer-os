@@ -1,4 +1,4 @@
-# Backend do Closer OS
+# Backend do HIGH CLOSER
 
 Este diretório contém a camada de contas, isolamento de empresas, convites e administração. A aplicação usa uma chave **pública** do Supabase no navegador. Senhas e sessões são gerenciadas pelo Supabase Auth; nenhum administrador recebe a senha de um cliente. Chaves `service_role`, de conexão PostgreSQL e administrativas nunca devem entrar em variáveis `VITE_*`, no Git ou em mensagens.
 
