@@ -1,6 +1,6 @@
 # Oportunidades 360°, atividades e timeline
 
-Esta atualização do HIGH CLOSER centraliza os dados comerciais de uma oportunidade, organiza o próximo contato e registra automaticamente seu histórico. Reutiliza leads, etapas do pipeline, pós-call e revisões existentes. A publicação desta atualização e a verificação em produção ainda precisam ser confirmadas no [registro de implantação](IMPLANTACAO.md).
+Esta atualização do HIGH CLOSER centraliza os dados comerciais de uma oportunidade, organiza o próximo contato e registra automaticamente seu histórico. Reutiliza leads, etapas do pipeline, pós-call e revisões existentes. A publicação e a verificação em produção estão confirmadas no [registro de implantação](IMPLANTACAO.md).
 
 ## Como usar
 
