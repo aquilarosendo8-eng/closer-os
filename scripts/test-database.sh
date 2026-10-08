@@ -30,9 +30,15 @@ for task_migration in "$TASK_REPO_ROOT"/supabase/migrations/*.sql; do
   if [[ "$task_migration" == *202610070004_custom_pipeline_call_reviews.sql ]]; then
     psql_local < "$TASK_REPO_ROOT/supabase/tests/pre-pipeline-migration.sql" >/dev/null
   fi
+  if [[ "$task_migration" == *202610080006_lead_activities_timeline.sql ]]; then
+    psql_local < "$TASK_REPO_ROOT/supabase/tests/pre-activities-migration.sql" >/dev/null
+  fi
   psql_local < "$task_migration" >/dev/null
   if [[ "$task_migration" == *202610070004_custom_pipeline_call_reviews.sql ]]; then
     psql_local < "$TASK_REPO_ROOT/supabase/tests/post-pipeline-migration.sql" >/dev/null
+  fi
+  if [[ "$task_migration" == *202610080006_lead_activities_timeline.sql ]]; then
+    psql_local < "$TASK_REPO_ROOT/supabase/tests/post-activities-migration.sql" >/dev/null
   fi
 done
 if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.log" 2>&1; then
@@ -40,7 +46,7 @@ if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
 psql_local -Atc "insert into test.results select label from migration_test.results;" >/dev/null
-for task_assertions in self-service invitation-details pipeline-call-reviews account-names; do
+for task_assertions in self-service invitation-details pipeline-call-reviews account-names lead-activities; do
   if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
     cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
   fi
@@ -146,4 +152,27 @@ select test.ok((select count(*)=1 from public.subscriptions s join private.self_
 select test.ok((select count(*)=1 from public.audit_logs where actor_id=test.value('self_race')::uuid and action='workspace.self_service_created'),'parallel public registrations audit creation once');
 select test.ok((select count(*)=2 from public.policy_acceptances where user_id=test.value('self_race')::uuid),'parallel public registrations record two policy documents once');" >/dev/null
 echo 'Concurrent public-registration test passed.'
+# Completing and cancelling the same pending task must produce only one terminal transition.
+finish_activity_once() {
+  local task_final_status="$1"
+  psql_local <<SQL
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000064',true);
+select public.set_activity_status(test.value('activities_ws_b')::uuid,test.value('activities_status_race')::uuid,'$task_final_status');
+select pg_sleep(1);
+commit;
+SQL
+}
+finish_activity_once completed > "$TASK_LOG_DIR/activity-complete.log" 2>&1 & TASK_FIRST_PID=$!
+finish_activity_once cancelled > "$TASK_LOG_DIR/activity-cancel.log" 2>&1 & TASK_SECOND_PID=$!
+TASK_FIRST_STATUS=0; wait "$TASK_FIRST_PID" || TASK_FIRST_STATUS=$?
+TASK_SECOND_STATUS=0; wait "$TASK_SECOND_PID" || TASK_SECOND_STATUS=$?
+if { [ "$TASK_FIRST_STATUS" -eq 0 ] && [ "$TASK_SECOND_STATUS" -eq 0 ]; } || { [ "$TASK_FIRST_STATUS" -ne 0 ] && [ "$TASK_SECOND_STATUS" -ne 0 ]; }; then
+  cat "$TASK_LOG_DIR/activity-complete.log" "$TASK_LOG_DIR/activity-cancel.log" >&2; exit 1
+fi
+if [ "$TASK_FIRST_STATUS" -ne 0 ]; then TASK_REJECT_LOG="$TASK_LOG_DIR/activity-complete.log"; else TASK_REJECT_LOG="$TASK_LOG_DIR/activity-cancel.log"; fi
+if ! grep -q 'Atividade já finalizada' "$TASK_REJECT_LOG"; then cat "$TASK_REJECT_LOG" >&2; exit 1; fi
+psql_local -Atc "select test.ok((select count(*)=1 from public.lead_events where workspace_id=test.value('activities_ws_b')::uuid and metadata->>'activity_id'=test.value('activities_status_race') and event_type in ('activity.completed','activity.cancelled')),'concurrent activity finalization records one terminal event');" >/dev/null
+echo 'Concurrent activity-finalization test passed.'
 psql_local -Atc "select 'Total database assertions: ' || count(*) from test.results"

@@ -138,6 +138,7 @@ test('nested LOST confirmation can be dismissed with Escape without losing the p
   const state = await mountFeatures(page)
   await navigateFeatures(page, 'Pipeline')
   await page.locator('.lead-card').filter({ has: page.getByRole('heading', { name: 'Ana Ribeiro', exact: true }) }).getByRole('button', { name: /Ana Ribeiro/ }).click()
+  await page.getByRole('dialog', { name: 'Oportunidade de Ana Ribeiro', exact: true }).getByRole('button', { name: 'Editar oportunidade', exact: true }).click()
   const parent = page.getByRole('dialog', { name: 'Ana Ribeiro', exact: true })
   await parent.getByLabel('Observações').fill('Rascunho preservado ao cancelar a confirmação da perda.')
   await parent.getByLabel('Status').selectOption({ label: 'Perdido' })

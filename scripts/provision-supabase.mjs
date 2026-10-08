@@ -137,11 +137,13 @@ async function main() {
     console.log(`Schema: ${version} instalada em transação, com controle de versão.`)
   }
   console.log(`Schema: ${filenames.length} versões e checksums conferidos; ${applied} migrações aplicadas.`)
-  const expectedTables = ['profiles','platform_admins','workspaces','memberships','leads','subscriptions','invitations','workspace_settings','audit_logs','policy_acceptances','bootstrap_settings','pipelines','pipeline_stages','call_reviews']
+  const expectedTables = ['profiles','platform_admins','workspaces','memberships','leads','subscriptions','invitations','workspace_settings','audit_logs','policy_acceptances','bootstrap_settings','pipelines','pipeline_stages','call_reviews','activities','lead_events']
   const checks = await query(`select tablename, rowsecurity from pg_tables where schemaname='public' and tablename in (${expectedTables.map(sqlString).join(',')})`)
   if (checks.length !== expectedTables.length || checks.some(row => !row.rowsecurity)) fail('As tabelas esperadas ou as regras RLS não estão completas.')
   const stageColumn = await query("select is_nullable from information_schema.columns where table_schema='public' and table_name='leads' and column_name='stage_id'")
   if (stageColumn.length !== 1 || stageColumn[0].is_nullable !== 'NO') fail('O vínculo obrigatório entre leads e etapas do pipeline não está completo.')
+  const historyAccess = await query("select has_table_privilege('authenticated','public.activities','INSERT,UPDATE,DELETE') as task_write, has_table_privilege('authenticated','public.lead_events','INSERT,UPDATE,DELETE') as event_write, to_regprocedure('public.save_activity(uuid,text,text,text,timestamp with time zone,uuid,text,uuid)') is not null as activity_rpc, to_regprocedure('public.list_lead_call_history(uuid,text,integer,integer)') is not null as calls_rpc")
+  if (historyAccess.length !== 1 || historyAccess[0].task_write || historyAccess[0].event_write || !historyAccess[0].activity_rpc || !historyAccess[0].calls_rpc) fail('Atividades e histórico precisam das funções autorizadas e não podem permitir escrita direta do cliente.')
   console.log(`Autorização: ${expectedTables.length} tabelas com RLS ativada e leads vinculados a etapas.`)
   if (values['check-only']) { console.log('Verificação concluída, sem alteração de contas ou dados.'); return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) fail('Informe --owner-email ou CLOSER_OWNER_EMAIL para preparar o acesso do dono.')

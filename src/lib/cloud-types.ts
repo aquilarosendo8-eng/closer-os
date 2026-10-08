@@ -1,8 +1,11 @@
 import type { Lead, LeadershipReviewInput, Settings, Stage } from '../types'
 import type { WorkspaceRole } from './access-types'
+import type { Activity, ActivityActions, OpportunityDetailsService } from './opportunity-types'
 
 /** Cloud data is provided by the authenticated shell; this view never persists it locally. */
 export interface CloudAppContext {
+  workspaceId?: string
+  opportunity?: ActivityActions & { activities: Activity[]; loading: boolean; error: string; detailsService: OpportunityDetailsService; onRetry: () => void }
   leads: Lead[]
   settings: Settings
   workspaceName: string

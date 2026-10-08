@@ -57,5 +57,5 @@ export interface Lead {
   nextStep?: string
   leadershipReview?: LeadershipReview
 }
-export type Page = 'dashboard' | 'pipeline' | 'calls' | 'performance'
+export type Page = 'dashboard' | 'pipeline' | 'calls' | 'performance' | 'activities'
 export interface Settings { name: string; commissionRate: number; revenueGoal: number }

@@ -74,6 +74,9 @@ export async function mountProfile(page: Page, role: ProfileRole = 'admin', opti
     if (path === '/rest/v1/rpc/list_members') { await json(Object.entries(profileUserIds).filter(([memberRole]) => memberRole !== 'platform').map(([memberRole, memberId]) => ({ user_id: memberId, email: profileEmail(memberRole as ProfileRole), display_name: effectiveProfileName(state, workspaceId, memberId), role: memberRole, is_active: true }))); return }
     if (path === '/rest/v1/rpc/list_invitations' || path === '/rest/v1/rpc/list_audit' || path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
     if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(workspaceId)); return }
+    if (path === '/rest/v1/rpc/list_lead_activities') { await json({ items: [], next_offset: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_events') { await json({ items: [], next_cursor: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_call_history') { await json({ items: [], next_offset: null, call_count: 0 }); return }
     if (path === '/rest/v1/leads' && method === 'GET') { await json([]); return }
     if (path === '/rest/v1/rpc/update_my_display_name') {
       if (state.failOwnName) { await json({ message: 'Não foi possível salvar seu nome. Tente novamente.' }, 503); return }

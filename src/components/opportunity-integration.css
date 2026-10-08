@@ -1,0 +1,19 @@
+.op-today { margin-bottom: 24px; }
+.op-today-counts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border-bottom: 1px solid var(--color-border, #e5e7eb); padding: 0 24px 18px; gap: 16px; }
+.op-today-counts span { display: block; color: var(--color-text-secondary, #667085); font-size: 12px; line-height: 1.5; }
+.op-today-counts strong { display: block; margin-top: 7px; color: var(--color-text-primary, #111827); font-size: 23px; font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+.op-today-list { padding: 4px 24px; }
+.op-today-item { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--color-border, #e5e7eb); }
+.op-today-item:last-child { border-bottom: 0; }
+.op-today-icon { color: var(--color-primary, #3157d5); display: inline-flex; }
+.op-today-item.is-overdue .op-today-icon { color: var(--color-warning, #a15c06); }
+.op-today-lead { text-align: left; flex: 1; min-width: 0; }
+.op-today-lead strong { display: block; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.op-today-lead span { display: block; margin-top: 4px; font-size: 12px; line-height: 1.6; color: var(--color-text-secondary, #667085); overflow-wrap: anywhere; }
+.op-today-empty { color: var(--color-text-secondary, #667085); font-size: 12px; padding: 14px 0; line-height: 1.7; }
+.op-inline-error,.op-inline-success { font-size: 12px; line-height: 1.7; margin: 12px 24px; color: var(--color-danger, #b42318); }
+.op-inline-success { color: var(--color-success, #067647); }
+.op-next-action { display: flex; align-items: center; gap: 5px; margin-top: 7px; color: var(--color-text-secondary, #667085); font-size: 11px; line-height: 1.6; }
+.op-next-action.is-overdue { color: var(--color-warning, #a15c06); }
+td .op-next-action { margin: 0; min-width: 170px; }
+@media(max-width:680px) { .op-today-counts { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 0 16px 16px; gap: 16px 24px; } .op-today-list { padding: 4px 16px; } .op-today .panel-header { align-items: flex-start; flex-wrap: wrap; gap: 12px; } }

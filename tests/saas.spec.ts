@@ -114,6 +114,9 @@ async function mockSupabase(page: Page, options: FixtureOptions = {}): Promise<F
     }
     if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(String((body as { p_workspace_id?: string })?.p_workspace_id || workspaceA))); return }
     if (path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
+    if (path === '/rest/v1/rpc/list_lead_activities') { await json({ items: [], next_offset: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_events') { await json({ items: [], next_cursor: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_call_history') { await json({ items: [], next_offset: null, call_count: 0 }); return }
     if (path === '/rest/v1/leads') {
       const id = url.searchParams.get('workspace_id')?.replace(/^eq\./, '')
       if (id === workspaceA && options.holdWorkspaceALeads) await options.holdWorkspaceALeads
@@ -185,11 +188,13 @@ test('viewer can inspect records but cannot edit, move, delete or export', async
   await expect(page.getByLabel('Etapa de LEAD PRIVADO EMPRESA A')).toBeDisabled()
   await expect(page.getByRole('button', { name: /Adicionar lead em/ })).toHaveCount(0)
   await page.locator('.lead-card-main').click()
-  const dialog = page.getByRole('dialog', { name: 'LEAD PRIVADO EMPRESA A' })
-  await expect(dialog.getByLabel('Nome do lead')).toBeDisabled()
+  const dialog = page.getByRole('dialog', { name: 'Oportunidade de LEAD PRIVADO EMPRESA A', exact: true })
+  await expect(dialog.getByRole('heading', { name: 'Oportunidade de LEAD PRIVADO EMPRESA A', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Editar oportunidade', exact: true })).toHaveCount(0)
+  await expect(dialog.locator('form,input,textarea,select')).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: 'Salvar alterações' })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: 'Excluir lead' })).toHaveCount(0)
-  await dialog.getByRole('button', { name: 'Fechar', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Fechar oportunidade', exact: true }).click()
   await page.getByRole('button', { name: 'Configurações', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Seu workspace' }).getByLabel('Meta de faturamento (R$)')).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Exportar backup' })).toHaveCount(0)

@@ -63,6 +63,9 @@ async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'c
     }
     if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(workspaceId)); return }
     if (path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
+    if (path === '/rest/v1/rpc/list_lead_activities') { await json({ items: [], next_offset: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_events') { await json({ items: [], next_cursor: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_call_history') { await json({ items: [], next_offset: null, call_count: 0 }); return }
     if (path === '/rest/v1/leads') { await json([]); return }
     if (path === '/rest/v1/rpc/list_members') { await json(body?.p_workspace_id === workspaceId ? structuredClone(state.members) : []); return }
     if (path === '/rest/v1/rpc/list_invitations') { await json(structuredClone(state.invitations.filter(invite => invite.workspace_id === body?.p_workspace_id))); return }

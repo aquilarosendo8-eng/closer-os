@@ -10,6 +10,7 @@ import { AuthenticatedTheme, ThemeSelector } from './components/AuthenticatedThe
 import { administrationService, createOwnWorkspace, invitationPreview, loadAccess, subscriptionAllowsAccess, type AccessSnapshot } from './lib/access'
 import { applicationUrl, cloudConfigured, readableError, requireSupabase, signUpAccount, supabase } from './lib/supabase'
 import { useCloudData } from './lib/useCloudData'
+import { useOpportunityData } from './lib/useOpportunityData'
 import './saas.css'
 
 const isDemo = new URLSearchParams(window.location.search).get('demo') === '1'
@@ -52,6 +53,7 @@ export default function SaaSApp() {
   const workspace = snapshot.workspaces.find(row => row.workspace.id === selectedWorkspace) || snapshot.workspaces[0] || null
   const allowed = workspace && subscriptionAllowsAccess(workspace.subscription)
   const data = useCloudData(allowed && Boolean(session?.user.email_confirmed_at) && !isDemo && !invitedToken && !passwordRequired ? workspace : null)
+  const opportunity = useOpportunityData(allowed && Boolean(session?.user.email_confirmed_at) && !isDemo && !invitedToken && !passwordRequired ? workspace : null)
 
   const refreshAccess = useCallback(async () => {
     if (!session?.user) return
@@ -226,5 +228,5 @@ export default function SaaSApp() {
   if (data.loading) return <AuthenticatedTheme>{accountBar}<div className="access-loading" role="status"><ShieldCheck size={28} /><p>Carregando seu CRM…</p></div></AuthenticatedTheme>
   const canEdit = workspace.membership.role !== 'viewer'
   const canManage = ['admin', 'manager'].includes(workspace.membership.role)
-  return <AuthenticatedTheme>{accountBar}<App cloud={{ leads: data.leads, stages: data.stages, canManagePipeline: canManage, canReviewCalls: canManage, onSavePipelineStages: data.savePipelineStages, onReviewCall: data.reviewCall, settings: data.settings, workspaceName: workspace.workspace.name, userName: workspace.membership.displayName, role: workspace.membership.role, userId: session.user.id, canEdit, canDelete: canManage, canManageSettings: workspace.membership.role === 'admin', canExport: workspace.membership.role !== 'viewer', onSaveLead: data.saveLead, onDeleteLead: data.deleteLead, onSaveSettings: data.saveSettings, onImportLeads: data.importLeads, onOpenAdmin: workspace.membership.role === 'admin' || snapshot.isPlatformAdmin ? () => setAdminOpen(true) : undefined, onSignOut: signOut, loading: data.loading, error: data.error, members: data.members, leadOwners: data.owners, onAssignLead: canManage ? data.assignLead : undefined }} /></AuthenticatedTheme>
+  return <AuthenticatedTheme>{accountBar}<App key={`${workspace.workspace.id}:${session.user.id}:${workspace.membership.role}`} cloud={{ workspaceId: workspace.workspace.id, opportunity: opportunity.detailsService ? { activities: opportunity.activities, loading: opportunity.loading, error: opportunity.error, detailsService: opportunity.detailsService, onSaveActivity: opportunity.onSaveActivity, onSetActivityStatus: opportunity.onSetActivityStatus, onRetry: () => { void opportunity.refresh() } } : undefined, leads: data.leads, stages: data.stages, canManagePipeline: canManage, canReviewCalls: canManage, onSavePipelineStages: data.savePipelineStages, onReviewCall: data.reviewCall, settings: data.settings, workspaceName: workspace.workspace.name, userName: workspace.membership.displayName, role: workspace.membership.role, userId: session.user.id, canEdit, canDelete: canManage, canManageSettings: workspace.membership.role === 'admin', canExport: workspace.membership.role !== 'viewer', onSaveLead: data.saveLead, onDeleteLead: data.deleteLead, onSaveSettings: data.saveSettings, onImportLeads: data.importLeads, onOpenAdmin: workspace.membership.role === 'admin' || snapshot.isPlatformAdmin ? () => setAdminOpen(true) : undefined, onSignOut: signOut, loading: data.loading, error: data.error, members: data.members, leadOwners: data.owners, onAssignLead: canManage ? data.assignLead : undefined }} /></AuthenticatedTheme>
 }

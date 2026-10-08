@@ -60,6 +60,8 @@ O banco valida as permissões mesmo em chamadas diretas à API. Desativação, v
 
 Edição de nomes: cada pessoa altera o próprio nome em **Minha conta**; o administrador ativo edita o nome da empresa e os nomes dos membros exclusivamente nela. O e-mail permanece somente para consulta. Consulte [Perfis e nomes](docs/PERFIS-E-NOMES.md) para permissões, implementação e validação.
 
+Consulte [Oportunidades 360°, atividades e timeline](docs/OPORTUNIDADES-E-ATIVIDADES.md) para o fluxo de follow-ups, próxima ação, histórico automático e suas regras de acesso.
+
 ## Validação
 
 ```bash

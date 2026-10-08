@@ -86,12 +86,15 @@ export async function mountFeatures(page: Page, role: FixtureRole = 'admin', opt
       await json(requestedFilter?.startsWith('eq.') ? settings(requestedFilter.slice(3)) : allowedIds.map(settings)); return
     }
     const requestedWorkspace = String(body?.p_workspace_id || url.searchParams.get('workspace_id')?.replace(/^eq\./, '') || '')
-    if (path.startsWith('/rest/v1/') && !allowedIds.includes(requestedWorkspace) && /leads|pipeline_stages|call_reviews|review_call|list_members/.test(path)) {
+    if (path.startsWith('/rest/v1/') && !allowedIds.includes(requestedWorkspace) && /leads|pipeline_stages|call_reviews|review_call|list_members|list_lead_(activities|events|call_history)/.test(path)) {
       state.unexpected.push(`Unscoped or unauthorized request: ${path}`); await json({ message: 'Empresa fora do acesso do fixture' }, 403); return
     }
     if (path === '/rest/v1/rpc/list_members') { await json(Object.entries(memberIds).map(([memberRole, user_id]) => ({ user_id, display_name: names[memberRole as FixtureRole], email: `${memberRole}@example.invalid`, role: memberRole, is_active: true }))); return }
     if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(state.stages[requestedWorkspace].map(stage => ({ ...stage, lead_count: state.leads.filter(lead => lead.workspace_id === requestedWorkspace && lead.stage_id === stage.id).length }))); return }
     if (path === '/rest/v1/rpc/list_call_reviews') { await json(state.reviews[requestedWorkspace]); return }
+    if (path === '/rest/v1/rpc/list_lead_activities') { await json({ items: [], next_offset: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_events') { await json({ items: [], next_cursor: null }); return }
+    if (path === '/rest/v1/rpc/list_lead_call_history') { await json({ items: [], next_offset: null, call_count: 0 }); return }
     if (path === '/rest/v1/rpc/save_pipeline_stages') {
       if (!['admin', 'manager'].includes(role)) { await json({ message: 'Sem permissão para configurar' }, 403); return }
       if (state.failStageSave) { await json({ message: 'Não foi possível salvar o pipeline. Tente novamente.' }, 503); return }

@@ -251,6 +251,123 @@ async function accountNameChecks({ anonymous, platform, adminA, adminB, closerA,
   check(isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget), 'Renomear empresa preserva Auth, perfil, e-mails, aliases e papéis do membro')
 }
 
+async function opportunityChecks({ anonymous, platform, adminA, adminB, closerA, closerB, manager, viewer, workspaceA, workspaceB, leadA, leadOtherCloser, review }) {
+  // These public JWTs only operate on leads/workspaces created by this invocation.
+  const listTasks = (api, leadId = null) => rpc(api, 'list_lead_activities', { p_workspace_id: workspaceA.id, p_lead_id: leadId, p_limit: 200, p_offset: 0 }, 'Listagem real de atividades temporárias')
+  const newTask = (api, leadId, title, assignee, due = new Date().toISOString()) => rpc(api, 'save_activity', {
+    p_workspace_id: workspaceA.id, p_lead_id: leadId, p_title: title, p_type: 'follow_up', p_due_at: due,
+    p_assigned_to: assignee, p_description: 'Anotação temporária de verificação.', p_activity_id: null,
+  }, 'Criação real de atividade temporária')
+  const original = (await rows(closerA.client, workspaceA.id)).find(row => row.id === leadA.id)
+  const firstCallDate = original.data.callDate
+  check(Boolean(firstCallDate), 'Lead temporário possui data conhecida para validar histórico de calls')
+  const main = await newTask(closerA.client, leadA.id, 'Validar decisão temporária', closerA.id, new Date(Date.now() - 172800000).toISOString())
+  check(main.workspace_id === workspaceA.id && main.lead_id === leadA.id && main.assigned_to === closerA.id && main.created_by === closerA.id,
+    'Atividade usa empresa, lead, responsável e autoria autorizados no servidor')
+  check(main.status === 'pending' && main.completed_at === null && Number.isFinite(Date.parse(main.created_at)),
+    'Atividade começa pendente com data do servidor e sem conclusão fictícia')
+  check(Date.parse(main.due_at) < Date.now() && (await listTasks(closerA.client)).items.some(item => item.id === main.id),
+    'Atividade atrasada continua pendente e disponível na central operacional')
+  const edited = await rpc(closerA.client, 'save_activity', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id,
+    p_title: 'Retomar decisão temporária', p_type: 'whatsapp', p_due_at: main.due_at, p_assigned_to: closerA.id,
+    p_description: 'Confirmar o próximo passo temporário.', p_activity_id: main.id }, 'Closer edita atividade do próprio lead')
+  check(edited.id === main.id && edited.title === 'Retomar decisão temporária' && edited.type === 'whatsapp'
+    && edited.created_by === main.created_by && edited.created_at === main.created_at, 'Edição mantém identidade e autoria original da tarefa')
+  const delegated = await newTask(manager.client, leadA.id, 'Tarefa temporária atribuída a colega', closerB.id)
+  check(delegated.created_by === manager.id && delegated.assigned_to === closerB.id, 'Gestor pode atribuir atividade da equipe a membro ativo com edição')
+  const closerBRows = unwrap(await closerB.client.from('activities').select('id').eq('workspace_id', workspaceA.id).eq('id', delegated.id), 'Conferência RLS de responsável sem acesso ao lead')
+  check(closerBRows.length === 0 && Boolean((await closerB.client.rpc('set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: delegated.id, p_status: 'completed' })).error),
+    'Atribuir tarefa a um closer não concede acesso ao lead de outro responsável')
+  const keptAssignee = await rpc(closerA.client, 'save_activity', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id,
+    p_title: 'Tarefa temporária revisada pelo dono do lead', p_type: delegated.type, p_due_at: delegated.due_at,
+    p_assigned_to: closerB.id, p_description: delegated.description, p_activity_id: delegated.id }, 'Dono do lead mantém responsável definido pelo gestor')
+  check(keptAssignee.assigned_to === closerB.id && keptAssignee.created_by === manager.id, 'Closer preserva delegação existente sem alterar autoria do gestor')
+  check(Boolean((await closerA.client.rpc('save_activity', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id,
+    p_title: 'Delegação nova não autorizada', p_type: 'call', p_due_at: main.due_at, p_assigned_to: closerB.id })).error), 'Closer não cria nova atribuição para outro usuário')
+  const teamTask = await newTask(manager.client, leadOtherCloser.id, 'Tarefa temporária do outro closer', closerB.id)
+  for (const [caller, label] of [[viewer, 'Viewer'], [platform, 'Plataforma sem vínculo'], [adminB, 'Outra empresa']]) {
+    check(Boolean((await caller.client.rpc('save_activity', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id,
+      p_title: 'Atividade não autorizada', p_type: 'call', p_due_at: main.due_at, p_assigned_to: closerA.id })).error), `${label} não cria atividade neste lead`)
+    check(Boolean((await caller.client.rpc('set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: main.id, p_status: 'completed' })).error), `${label} não conclui atividade deste lead`)
+  }
+  check(Boolean((await closerA.client.rpc('list_lead_activities', { p_workspace_id: workspaceA.id, p_lead_id: leadOtherCloser.id })).error), 'Closer não consulta atividades de lead de outro responsável')
+  const foreignTasks = unwrap(await adminB.client.from('activities').select('id').eq('workspace_id', workspaceA.id), 'RLS de atividades entre empresas')
+  const platformTasks = unwrap(await platform.client.from('activities').select('id').eq('workspace_id', workspaceA.id), 'RLS de atividades do operador da plataforma')
+  check(foreignTasks.length === 0 && platformTasks.length === 0, 'RLS não expõe atividades da empresa ao operador ou a outro cliente')
+  check((await listTasks(viewer.client)).items.some(item => item.id === main.id), 'Viewer lê atividades autorizadas sem editar')
+  const anonymousTasks = await anonymous.from('activities').select('id').eq('workspace_id', workspaceA.id)
+  check(Boolean(anonymousTasks.error) || anonymousTasks.data?.length === 0, 'Sem login não há acesso às atividades temporárias')
+  check(Boolean((await closerA.client.from('activities').insert({ workspace_id: workspaceA.id, lead_id: leadA.id,
+    assigned_to: closerA.id, created_by: adminA.id, created_at: '1970-01-01', type: 'call', title: 'Autoria fictícia', due_at: main.due_at })).error), 'Frontend não falsifica autor nem data por inserção direta de tarefa')
+  await deniedWrite(closerA.client.from('activities').update({ created_by: adminA.id, created_at: '1970-01-01' }).eq('id', main.id).select('id'),
+    async () => (await listTasks(closerA.client, leadA.id)).items.find(item => item.id === main.id)?.created_by === closerA.id, 'Frontend não altera autoria persistida da tarefa')
+  check(Boolean((await closerA.client.from('activities').delete().eq('workspace_id', workspaceA.id).eq('id', main.id)).error),
+    'Cliente não apaga a atividade por escrita direta, preservando o histórico')
+  const completed = await rpc(closerA.client, 'set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: main.id, p_status: 'completed' }, 'Conclusão real de follow-up temporário')
+  check(completed.status === 'completed' && Number.isFinite(Date.parse(completed.completed_at)), 'Conclusão possui status e data determinados pelo servidor')
+  const completedAgain = await rpc(closerA.client, 'set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: main.id, p_status: 'completed' }, 'Repetição idempotente da conclusão')
+  check(completedAgain.completed_at === completed.completed_at && completedAgain.updated_at === completed.updated_at, 'Repetir conclusão mantém o primeiro registro sem nova escrita')
+  check(Boolean((await closerA.client.rpc('set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: main.id, p_status: 'cancelled' })).error), 'Conclusão final não pode virar cancelamento posteriormente')
+  check(Boolean((await closerA.client.rpc('save_activity', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id,
+    p_title: 'Edição indevida de tarefa final', p_type: 'call', p_due_at: main.due_at, p_activity_id: main.id })).error), 'Tarefa finalizada não pode ser editada pela API')
+  const toCancel = await newTask(closerA.client, leadA.id, 'Atividade temporária cancelada', closerA.id)
+  const cancelled = await rpc(closerA.client, 'set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: toCancel.id, p_status: 'cancelled' }, 'Cancelamento real de atividade temporária')
+  check(cancelled.status === 'cancelled' && cancelled.completed_at === null, 'Cancelamento mantém o histórico sem registrar conclusão')
+  await rpc(adminA.client, 'update_member', { p_workspace_id: workspaceA.id, p_user_id: closerB.id, p_role: 'closer', p_is_active: false }, 'Desativação temporária do responsável para validar finalização')
+  const finishedDelegated = await rpc(closerA.client, 'set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: delegated.id, p_status: 'completed' }, 'Dono do lead conclui tarefa mesmo com responsável inativo')
+  check(finishedDelegated.status === 'completed' && finishedDelegated.assigned_to === closerB.id, 'Finalização de tarefa existente preserva responsável inativo')
+  await rpc(adminA.client, 'update_member', { p_workspace_id: workspaceA.id, p_user_id: closerB.id, p_role: 'closer', p_is_active: true }, 'Restauração do responsável temporário após validação')
+  check((await listTasks(closerA.client)).items.length === 0 && (await listTasks(manager.client)).items.some(item => item.id === teamTask.id),
+    'Central global carrega somente pendências autorizadas, sem histórico final de todos os leads')
+  const finalHistory = (await listTasks(closerA.client, leadA.id)).items
+  check(finalHistory.length === 3 && finalHistory.filter(item => item.status === 'completed').length === 2 && finalHistory.some(item => item.status === 'cancelled'),
+    'Detalhes do lead preservam tarefas concluídas e canceladas')
+  const firstHistory = await rpc(closerA.client, 'list_lead_call_history', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id }, 'Histórico inicial de calls temporárias')
+  const firstCall = firstHistory.items.find(item => Date.parse(item.call_date) === Date.parse(firstCallDate))
+  check(firstCall?.leadership_review?.score === 0 && firstCall.leadership_review.reviewed_by === manager.id,
+    'Histórico conserva revisão original ligada à data da primeira call')
+  const secondDate = new Date(Date.parse(firstCallDate) + 86400000).toISOString()
+  unwrap(await closerA.client.from('leads').update({ data: { ...original.data, callDate: secondDate, callScore: 9, callSummary: 'Segunda call temporária para conferir o histórico.' } })
+    .eq('workspace_id', workspaceA.id).eq('id', leadA.id), 'Registro de segunda call datada sem alterar a venda existente')
+  const noCopiedReview = await rpc(closerA.client, 'list_lead_call_history', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id }, 'Conferência de nova call sem revisão herdada')
+  check(noCopiedReview.items.find(item => Date.parse(item.call_date) === Date.parse(secondDate))?.leadership_review === null,
+    'A revisão global anterior não é copiada para a nova call')
+  await rpc(manager.client, 'review_call', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_feedback: 'Segunda revisão temporária independente.', p_score: 7 }, 'Revisão independente da segunda call')
+  const finalCalls = await rpc(viewer.client, 'list_lead_call_history', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id }, 'Viewer consulta histórico permitido da oportunidade')
+  const older = finalCalls.items.find(item => Date.parse(item.call_date) === Date.parse(firstCallDate))
+  const newer = finalCalls.items.find(item => Date.parse(item.call_date) === Date.parse(secondDate))
+  check(older?.leadership_review?.feedback === review.feedback && older.leadership_review.score === 0
+    && newer?.leadership_review?.score === 7 && newer.call_score === 9, 'Duas calls mantêm pós-call e avaliações de liderança independentes por data')
+  check(finalCalls.owner_id === closerA.id && Boolean(finalCalls.owner_name) && Number.isFinite(Date.parse(finalCalls.last_event_at)),
+    'Detalhes autorizados retornam somente nome do dono e última interação, sem lista geral de usuários')
+  check(Boolean((await adminB.client.rpc('list_lead_call_history', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id })).error), 'Outra empresa não consulta histórico de calls')
+  check(Boolean((await closerB.client.rpc('list_lead_events', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id })).error), 'Closer não consulta timeline de lead alheio')
+  const timeline = await rpc(closerA.client, 'list_lead_events', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_limit: 100 }, 'Timeline automática real do lead temporário')
+  const types = timeline.items.map(item => item.event_type)
+  check(['lead.created','lead.stage_changed','lead.won','lead.lost','call.recorded','call.recording_added','call.reviewed','activity.created','activity.updated','activity.completed','activity.cancelled']
+    .every(type => types.includes(type)), 'Timeline registra eventos comerciais de lead, calls, vendas e tarefas automaticamente')
+  check(timeline.items.filter(item => item.event_type === 'activity.completed' && item.metadata.activity_id === main.id).length === 1,
+    'Conclusão idempotente produz somente um evento comercial')
+  check(timeline.items.every(item => typeof item.id === 'string' && item.workspace_id === workspaceA.id && item.lead_id === leadA.id && Number.isFinite(Date.parse(item.created_at))),
+    'Timeline mantém identidade composta, IDs sem perda de precisão e datas válidas do servidor')
+  check(timeline.items.find(item => item.event_type === 'activity.created' && item.metadata.activity_id === main.id)?.actor_id === closerA.id,
+    'Autoria da timeline corresponde à sessão autenticada que criou a atividade')
+  const firstPage = await rpc(closerA.client, 'list_lead_events', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_limit: 2 }, 'Primeira página lazy da timeline')
+  const nextPage = await rpc(closerA.client, 'list_lead_events', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id, p_limit: 2, p_before_id: firstPage.next_cursor }, 'Continuação paginada da timeline')
+  check(firstPage.items.length === 2 && Boolean(firstPage.next_cursor) && nextPage.items.every(item => BigInt(item.id) < BigInt(firstPage.next_cursor)),
+    'Paginação lazy de timeline não repete eventos nem perde precisão de cursor')
+  check(Boolean((await closerA.client.from('lead_events').insert({ workspace_id: workspaceA.id, lead_id: leadA.id,
+    actor_id: adminA.id, event_type: 'lead.won', metadata: {}, created_at: '1970-01-01' })).error), 'Cliente não pode inserir evento com autor e data forjados')
+  check(Boolean((await closerA.client.from('lead_events').update({ metadata: { forged: true } }).eq('workspace_id', workspaceA.id).eq('lead_id', leadA.id)).error),
+    'Cliente não pode editar a timeline persistida')
+  check(Boolean((await closerA.client.from('lead_events').delete().eq('workspace_id', workspaceA.id).eq('lead_id', leadA.id)).error),
+    'Cliente não pode apagar a timeline persistida')
+  const foreignEvents = unwrap(await adminB.client.from('lead_events').select('id').eq('workspace_id', workspaceA.id), 'RLS de timeline entre empresas')
+  const platformEvents = unwrap(await platform.client.from('lead_events').select('id').eq('workspace_id', workspaceA.id), 'RLS de timeline do operador')
+  check(foreignEvents.length === 0 && platformEvents.length === 0, 'Timeline não é exposta a outra empresa nem à plataforma sem vínculo')
+  return { main, teamTask, finalHistory, timeline }
+}
+
 async function run() {
   check(Boolean(url && serviceKey && publicCredential(publicKey)), 'Credenciais públicas e administrativas separadas')
   const destination = new URL(url)
@@ -395,20 +512,31 @@ async function run() {
   unwrap(await closerA.client.from('leads').update({ data: wonAgain, stage_id: winStage.id }).eq('workspace_id', workspaceA.id).eq('id', leadA.id), 'Movimento real para WON renomeada')
   check((await rows(closerA.client, workspaceA.id))[0].data.stageType === 'WON' && (await rows(closerA.client, workspaceA.id))[0].data.closedValue === 12500, 'Vitória é identificada pelo tipo da etapa e valor persistido')
 
+  const opportunity = await opportunityChecks({ anonymous, platform, adminA, adminB, closerA, closerB, manager, viewer, workspaceA, workspaceB, leadA, leadOtherCloser, review })
+
   const exported = await rpc(adminA.client, 'export_workspace', { p_workspace_id: workspaceA.id }, 'Exportação real pelo administrador da empresa')
   check(exported?.pipeline_stages?.length === 8 && exported?.call_reviews?.length === 1 && exported?.pipelines?.length === 1, 'Exportação preserva configuração do pipeline e feedbacks da liderança')
   check(exported?.leads?.length === 3 && exported.leads.some(row => row.id === leadA.id && row.closedValue === 12500), 'Exportação da empresa inclui somente seus dados persistidos')
+  check(exported?.activities?.length === 4 && exported?.lead_events?.some(item => item.lead_id === leadA.id && item.event_type === 'activity.completed'),
+    'Exportação preserva atividades, histórico comercial e versões de calls da empresa')
 
   check(Boolean((await adminA.client.rpc('admin_update_subscription', { p_workspace_id: workspaceA.id, p_plan: 'team', p_status: 'active', p_seat_limit: 6 })).error), 'Empresa cliente não altera o próprio plano comercial')
   await rpc(platform.client, 'admin_update_subscription', { p_workspace_id: workspaceA.id, p_plan: 'team', p_status: 'suspended', p_seat_limit: 6 }, 'Suspensão real da empresa temporária')
   check((await rows(closerA.client, workspaceA.id)).length === 0 && (await rows(adminA.client, workspaceA.id)).length === 0, 'Suspensão bloqueia consultas CRM mesmo com sessão existente')
   check(Boolean((await closerA.client.from('leads').insert({ workspace_id: workspaceA.id, id: crossTenantInsert.id, owner_id: closerA.id, data: crossTenantInsert })).error), 'Suspensão bloqueia novos cadastros')
+  check(Boolean((await closerA.client.rpc('list_lead_activities', { p_workspace_id: workspaceA.id })).error)
+    && Boolean((await closerA.client.rpc('list_lead_events', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id })).error), 'Suspensão bloqueia atividades e timeline na sessão existente')
   const suspendedExport = await rpc(adminA.client, 'export_workspace', { p_workspace_id: workspaceA.id }, 'Portabilidade do administrador após suspensão')
   check(suspendedExport?.leads?.length === 3, 'Administrador mantém exportação de portabilidade após suspensão')
+  check(suspendedExport.activities?.length === 4 && suspendedExport.lead_events?.length === exported.lead_events.length,
+    'Portabilidade após suspensão preserva também atividades e histórico completo')
   await rpc(platform.client, 'admin_update_subscription', { p_workspace_id: workspaceA.id, p_plan: 'team', p_status: 'active', p_seat_limit: 6 }, 'Reativação da empresa temporária')
   await rpc(adminA.client, 'update_member', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_role: 'closer', p_is_active: false }, 'Desativação real de membro')
   check((await rows(closerA.client, workspaceA.id)).length === 0 && (await rows(fresh, workspaceA.id)).length === 0, 'Desativação bloqueia todas as sessões existentes do membro')
   check(Boolean((await closerA.client.from('leads').insert({ workspace_id: workspaceA.id, id: crossTenantInsert.id, owner_id: closerA.id, data: crossTenantInsert })).error), 'Membro desativado não cadastra leads')
+  check(Boolean((await closerA.client.rpc('list_lead_call_history', { p_workspace_id: workspaceA.id, p_lead_id: leadA.id })).error)
+    && Boolean((await closerA.client.rpc('set_activity_status', { p_workspace_id: workspaceA.id, p_activity_id: opportunity.main.id, p_status: 'completed' })).error),
+    'Desativação revoga histórico e mutações de atividades em todas as sessões anteriores')
   check((await rows(adminA.client, workspaceA.id)).length === 3, 'Desativar acesso preserva os dados da empresa')
 }
 
@@ -433,7 +561,7 @@ async function cleanup() {
   if (ids.length) for (const [table, column] of [
     ['workspaces', 'id'], ['memberships', 'workspace_id'], ['workspace_settings', 'workspace_id'], ['subscriptions', 'workspace_id'],
     ['invitations', 'workspace_id'], ['leads', 'workspace_id'], ['pipelines', 'workspace_id'], ['pipeline_stages', 'workspace_id'],
-    ['call_reviews', 'workspace_id'], ['audit_logs', 'workspace_id'],
+    ['call_reviews', 'workspace_id'], ['activities', 'workspace_id'], ['lead_events', 'workspace_id'], ['audit_logs', 'workspace_id'],
   ]) {
     const remaining = await service.from(table).select(column, { head: true, count: 'exact' }).in(column, ids)
     if (remaining.error || remaining.count !== 0) { cleanupFailed = true; console.error('CLEANUP FAILED: Conferência de dados das empresas temporárias') }

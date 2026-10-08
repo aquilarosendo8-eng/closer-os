@@ -103,6 +103,7 @@ test('old last contact marks a lead red and a new contact removes the alert', as
   await expect(card).toHaveClass(/stale/)
   await expect(card.getByText('Há mais de 5 dias sem contato')).toBeVisible()
   await card.getByRole('button', { name: /Follow-up atrasado E2E/ }).click()
+  await page.getByRole('dialog', { name: 'Oportunidade de Follow-up atrasado E2E', exact: true }).getByRole('button', { name: 'Editar oportunidade', exact: true }).click()
   const edit = page.getByRole('dialog', { name: 'Follow-up atrasado E2E' })
   await edit.getByLabel('Último contato').fill('2026-10-06T11:00')
   await edit.getByRole('button', { name: 'Salvar alterações' }).click()
