@@ -55,6 +55,14 @@ O provisionador existente aplica somente a migration pendente, com transação, 
 
 Esta alteração não exige novas variáveis, SMTP, URLs de redirecionamento ou configurações de login. Login, convites, recuperação de senha, pipeline, calls, métricas e assinaturas mantêm sua lógica anterior.
 
+Em 08/10/2026, a versão `c235d91a455ac2aeb50801755edef96d71adda77` foi publicada no deployment `dpl_HkNpZgAPz6saUZ26QzEU15Pz4obp`, em estado READY, no endereço https://closer-os-rho-three.vercel.app/. O builder confirmou a aplicação transacional da migration 005, os checksums das cinco versões e RLS ativo nas 14 tabelas. O HTML e os assets retornaram HTTP 200; as APIs de convite existentes mantiveram o bloqueio GET 405. O JavaScript publicado contém as novas RPCs e não contém as credenciais privadas verificadas.
+
+O SDK real do Supabase aprovou 189 verificações de Auth/REST/RLS, incluindo nome próprio, aliases independentes em duas empresas, alteração de nome da empresa, bloqueios por papel e preservação de e-mail/metadados/permissões/configurações. As sete contas e duas empresas temporárias foram removidas, com conferência da limpeza no Auth e nas tabelas relacionadas. Nenhum e-mail foi enviado nesse ensaio.
+
+No navegador publicado, passaram oito grupos de verificações reais, sem mocks: os quatro papéis editaram somente o próprio nome, com e-mail somente para consulta, atualização de avatar e persistência após recarregar; o administrador editou o nome de outro membro exclusivamente na sua empresa e o nome da empresa. A segunda empresa e as configurações comerciais permaneceram intactas. Claro/escuro e desktop/mobile foram conferidos, sem erros de execução ou requisições de envio de e-mail. As duas empresas e quatro contas desse ensaio, suas linhas relacionadas e o perfil temporário do navegador foram removidos.
+
+A comparação do estado anterior e posterior à migração confirmou a preservação dos registros das dez tabelas verificadas: empresas, perfis, vínculos, configurações, leads, pipelines, etapas, revisões de calls, assinaturas e administradores da plataforma. Não é necessário executar SQL ou configurar o Supabase manualmente nessa implantação.
+
 ## Arquivos da implementação
 
 - Interface: `src/SaaSApp.tsx`, `src/components/AccountProfile.tsx`, `src/components/account-profile.css`, `src/components/Administration.tsx`, `src/components/administration-names.css`.
