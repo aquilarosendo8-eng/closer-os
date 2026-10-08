@@ -59,3 +59,28 @@ O SMTP Gmail usa `smtp.gmail.com`, porta `465`, remetente e usuário iguais ao G
 A aplicação exige pelo menos 12 caracteres ao criar ou redefinir senha. A política correspondente do Supabase Auth deve ser conferida no painel. A confirmação, ativação e recuperação em caixas externas continuam sujeitas à entrega e aos limites do serviço SMTP.
 
 Para comercialização, consulte o [checklist](COMERCIALIZACAO.md). Assinaturas e cobrança permanecem manuais. Documentos legais, preços, suporte e estratégia de backup são decisões operacionais; este registro não os considera implementados ou aprovados.
+
+
+## Atualização — 8 de outubro de 2026: oportunidades, atividades e timeline
+
+A implementação `4140a56471175c4cd00d6e74be15c9e928794292` foi publicada em `https://closer-os-rho-three.vercel.app/` pelo deploy `dpl_9ExCXmVaQuyiUUxwZ2DzcZ1Rx6me`, estado **READY**. A publicação nativa executou `npm run build:cloud`: a migration `202610080006_lead_activities_timeline` foi aplicada em transação; as seis versões e seus checksums foram conferidos; as **16 tabelas públicas têm RLS**. As migrations 001–005 permaneceram imutáveis.
+
+O SHA256 da migration006 instalada é `83ee112ee95fd470ab758b62941908983915bb86d560b783f2a7588c6ac08c82`. O provisionamento também confirmou ausência de escrita direta por `authenticated` em `activities` e `lead_events`, além das funções autorizadas necessárias.
+
+O site retornou HTTP200 e os quatro assets referenciados carregaram corretamente, com a implementação de atividades/histórico presente. Nenhuma credencial administrativa ou de conexão foi encontrada nesses arquivos públicos. Os dois endpoints de convites conservaram a proteção de GET405.
+
+| Verificação | Resultado | Escopo |
+| --- | --- | --- |
+| Testes unitários | 195 passaram | Datas, próxima ação, contratos, autoria protegida e regressões das funcionalidades existentes. |
+| Build de produção | Passou | TypeScript e Vite; publicação nativa com provisionamento. |
+| Navegador com respostas controladas | 138 cenários passaram | 28 novos de oportunidade/atividades e 110 de CRM, Pipeline/Calls, SaaS/Admin, perfil e temas. |
+| PostgreSQL isolado | 639 verificações passaram | Upgrade, RLS, papéis, isolamento, autor/data do servidor, histórico e cinco grupos de concorrência. |
+| Provisionamento isolado | 25 verificações passaram | PostgreSQL real descartável e Auth sintético; instalação, repetição, checksums, concorrência e recusa de permissões inadequadas. |
+| Supabase de produção | 239 verificações passaram | Novos RPCs e RLS, tarefas, histórico por data, autoria imutável, isolamento, suspensão, revogação e portabilidade, além dos fluxos existentes. |
+| Navegador público com Supabase real | 11 grupos passaram | Visão 360°, CRUD autorizado de atividades, calls por data, revisão histórica, eventos comerciais, faturamento, temas, telas de 1366px/390px, RLS e saída das sessões. |
+
+As verificações de API e navegador em produção criaram somente identidades e empresas fictícias desta execução, sem enviar e-mails. A remoção dos fixtures foi conferida ao concluir. O ensaio de navegador usou quatro papéis reais, cinco contas e duas empresas; não simulou requisições. Recusou outra empresa, lead não atribuído, escrita pelo viewer e falsificação de autoria. O ticket de R$20.000 foi conferido no banco e na timeline; a venda de R$18.000 entrou no faturamento e saiu ao mudar para perda. As calls de duas datas conservaram suas notas e a revisão oficial anterior. As quatro sessões saíram sem erros de execução da página.
+
+Os hashes dos dez conjuntos de dados originais confirmaram preservação após a migration e após os ensaios de API e navegador. A migration006 já está instalada; nenhuma configuração manual adicional no Supabase ou na Vercel é necessária para oportunidades, atividades e timeline. Login, convites, regras de métricas, permissões existentes e assinaturas foram preservados.
+
+Consulte [Oportunidades e atividades](OPORTUNIDADES-E-ATIVIDADES.md) para arquitetura, campos, permissões, funcionamento e relação de arquivos. Calls antigas são mostradas somente quando os fatos existiam no cadastro; novos snapshots preservam o histórico por data sem alterar os cálculos atuais do Dashboard/Performance.

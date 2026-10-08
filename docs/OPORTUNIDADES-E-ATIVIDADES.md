@@ -103,12 +103,14 @@ As respostas são vinculadas à empresa, usuário e oportunidade selecionados. U
 - `src/lib/useOpportunityData.ts`: fila pendente e contexto de acesso da nuvem.
 - `src/lib/useDemoOpportunity.ts`: demonstração local isolada, sem comunicação com o Supabase.
 - `src/lib/dialog-scroll.ts`: rolagem de modais aninhados, inclusive ao trocar de conta ou empresa.
-- `src/App.tsx`, `src/SaaSApp.tsx` , `src/components/Dashboard.tsx` e `src/components/Pipeline.tsx`: entrada no detalhe, navegação, permissões e indicadores do Pipeline.
+- `src/App.tsx`, `src/SaaSApp.tsx`, `src/components/Dashboard.tsx` e `src/components/Pipeline.tsx`: entrada no detalhe, navegação, permissões e indicadores do Pipeline.
 - `supabase/migrations/202610080006_lead_activities_timeline.sql`: tabelas, RLS, funções, triggers, snapshots anteriores e portabilidade.
 
 ## Validação e publicação
 
-A suíte de PostgreSQL isolado passou **639 verificações**, incluindo atividades, eventos, autoria protegida, papéis, isolamento, snapshots anteriores e concorrência. Os **195 testes unitários** e `npm run build` passaram; o provisionamento isolado passou **25 verificações**. Os **138 cenários de navegador** passaram: 28 de oportunidades, 10 de CRM, 21 de Pipeline/Calls, 44 de SaaS/Admin, 20 de perfil e 15 de temas. A verificação de produção será registrada após a publicação. As suítes de navegador usam API simulada; não equivalem a uma verificação do novo deploy no Supabase real.
+A suíte de PostgreSQL isolado passou **639 verificações**, incluindo atividades, eventos, autoria protegida, papéis, isolamento, snapshots anteriores e concorrência. Os **195 testes unitários** e `npm run build` passaram; o provisionamento isolado passou **25 verificações**. Os **138 cenários de navegador** passaram: 28 de oportunidades, 10 de CRM, 21 de Pipeline/Calls, 44 de SaaS/Admin, 20 de perfil e 15 de temas. A aplicação publicada passou **239 verificações diretas no Supabase de produção** e **11 grupos de verificações no navegador público**, com as contas e empresas temporárias removidas ao concluir. Os 138 cenários de navegador usam respostas controladas e demonstração local; os 11 grupos públicos usam a interface publicada e o Supabase real, sem simular requisições.
+
+O ensaio público confirmou criação, edição, conclusão e cancelamento de tarefas; próxima ação; calls de datas distintas e revisão histórica; eventos de ticket, responsável, fechamento, perda e reabertura; faturamento de R$18.000 para zero ao mudar para perda; leitura sem escrita pelo viewer; temas claro/escuro e telas de 1366px e 390px. As tentativas de acessar outra empresa, editar lead não atribuído, escrever como viewer e falsificar autoria foram recusadas. As quatro sessões saíram sem erros de execução no navegador. Os hashes de dez conjuntos de dados originais permaneceram iguais após a migration e os ensaios de API e navegador.
 
 ```bash
 npm test
@@ -117,9 +119,9 @@ npx playwright test --config=playwright.opportunity.config.ts
 npm run test:db
 ```
 
-O deploy na Vercel executa `npm run build:cloud`. O provisionamento aplica a migration006 pendente, verifica seus checksums e confere **16 tabelas públicas com RLS**, além da ausência de escrita direta do cliente nas novas tabelas e das RPCs necessárias. Nesse fluxo integrado, a atualização do schema é automática; não reaplique o SQL manualmente.
+O deploy na Vercel executa `npm run build:cloud`. O provisionamento já aplicou a migration006 em produção, verificou seus checksums e conferiu **16 tabelas públicas com RLS**, além da ausência de escrita direta do cliente nas novas tabelas e das RPCs necessárias. Novos deploys verificam a mesma versão instalada. Nesse fluxo integrado, a atualização do schema é automática; não reaplique o SQL manualmente.
 
-Depois de confirmar o deploy e o schema em produção, não será necessária uma configuração manual adicional no Supabase ou na Vercel para estas funções. A confirmação da versão publicada, do build e dos fluxos reais deve ficar no [registro da implantação](IMPLANTACAO.md).
+O deploy, o schema e os fluxos reais foram confirmados. Não é necessária uma configuração manual adicional no Supabase ou na Vercel para estas funções. A versão publicada, o build e os fluxos reais estão documentados no [registro da implantação](IMPLANTACAO.md).
 
 ## Relação de arquivos desta implementação
 
@@ -141,6 +143,7 @@ Depois de confirmar o deploy e o schema em produção, não será necessária um
 - `tests/saas.spec.ts`
 - `tests/theme.spec.ts`
 - `docs/OPORTUNIDADES-E-ATIVIDADES.md`
+- `docs/IMPLANTACAO.md`
 - `playwright.opportunity.config.ts`
 - `src/components/Activities.tsx`
 - `src/components/ActivityForm.tsx`
