@@ -40,7 +40,7 @@ if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
 psql_local -Atc "insert into test.results select label from migration_test.results;" >/dev/null
-for task_assertions in self-service invitation-details pipeline-call-reviews; do
+for task_assertions in self-service invitation-details pipeline-call-reviews account-names; do
   if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
     cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
   fi

@@ -2,7 +2,7 @@
 // Real Auth/REST/RLS smoke test. Creates and removes only uniquely identified fixtures.
 // Never prints credentials, passwords, session tokens, invitation tokens, or client data.
 import { randomBytes, randomUUID } from 'node:crypto'
-import { parseArgs } from 'node:util'
+import { isDeepStrictEqual, parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 
 const { values } = parseArgs({ options: { 'env-file': { type: 'string' } } })
@@ -43,7 +43,11 @@ async function fixtureUser(label) {
   const email = `closeros-live-${salt}-${label}@example.invalid`
   const password = `${randomBytes(24).toString('base64url')}Aa1!`
   const created = unwrap(await service.auth.admin.createUser({
-    email, password, email_confirm: true, user_metadata: { display_name: 'Verificação temporária Closer OS' },
+    email, password, email_confirm: true, user_metadata: {
+      display_name: 'Verificação temporária Closer OS',
+      fixture_preferences: { locale: 'pt-BR', density: 'compact' },
+      fixture_label: label,
+    },
   }), step)
   if (!created?.user?.id) throw new Error(step)
   const fixture = { id: created.user.id, email, password, client: client(publicKey) }
@@ -77,6 +81,174 @@ async function deniedWrite(operation, verify, label) {
   const result = await operation
   check(Boolean(result.error) || (Array.isArray(result.data) && result.data.length === 0), label)
   check(await verify(), 'Tentativa bloqueada preservou o registro original')
+}
+
+async function accountNameSnapshot(fixture) {
+  // Every privileged read is restricted to an account created by this invocation.
+  const auth = unwrap(await service.auth.admin.getUserById(fixture.id), 'Conferência protegida da identidade temporária').user
+  const profile = unwrap(await service.from('profiles').select('id,email,display_name').eq('id', fixture.id).single(), 'Conferência do perfil temporário')
+  const memberships = unwrap(await service.from('memberships').select('workspace_id,user_id,role,is_active,display_name')
+    .eq('user_id', fixture.id).in('workspace_id', workspaces.map(workspace => workspace.id)).order('workspace_id'), 'Conferência dos vínculos temporários')
+  return { auth: { id: auth.id, email: auth.email, userMetadata: auth.user_metadata, appMetadata: auth.app_metadata }, profile, memberships }
+}
+function protectedAccountFields(snapshot) {
+  const { display_name: _displayName, ...otherMetadata } = snapshot.auth.userMetadata
+  return {
+    id: snapshot.auth.id, email: snapshot.auth.email, otherMetadata, appMetadata: snapshot.auth.appMetadata,
+    profileId: snapshot.profile.id, profileEmail: snapshot.profile.email,
+    memberships: snapshot.memberships.map(({ display_name: _alias, ...membership }) => membership),
+  }
+}
+function accountPreserved(before, after, label) {
+  check(isDeepStrictEqual(protectedAccountFields(before), protectedAccountFields(after)), label)
+}
+async function workspaceNameSnapshot(workspaceId) {
+  const workspace = unwrap(await service.from('workspaces').select('id,name,owner_id').eq('id', workspaceId).single(), 'Conferência da identidade da empresa temporária')
+  const settings = unwrap(await service.from('workspace_settings').select('name,commission_rate,revenue_goal').eq('workspace_id', workspaceId).single(), 'Conferência das metas da empresa temporária')
+  return { workspace, settings }
+}
+async function rosterName(api, workspaceId, userId) {
+  const members = await rpc(api, 'list_members', { p_workspace_id: workspaceId }, 'Consulta dos nomes efetivos da equipe temporária')
+  return members.find(member => member.user_id === userId)?.display_name
+}
+async function accountNameChecks({ anonymous, platform, adminA, adminB, closerA, closerB, manager, viewer, workspaceA, workspaceB }) {
+  // A second real invitation lets the same account exercise independent tenant aliases.
+  // Company A's seat-limit checks have already finished; its membership count is unchanged.
+  await invitation(adminB.client, workspaceB.id, closerA, 'closer')
+  const beforeCloser = await accountNameSnapshot(closerA)
+  const beforeColleague = await accountNameSnapshot(closerB)
+  const aliasA = 'Closer da empresa temporária A', aliasB = 'Closer da empresa temporária B', colleagueAlias = 'Gestor da empresa temporária A'
+  await rpc(adminA.client, 'update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: `  ${aliasA}  ` }, 'Admin define alias do membro somente na empresa A')
+  await rpc(adminB.client, 'update_member_display_name', { p_workspace_id: workspaceB.id, p_user_id: closerA.id, p_display_name: aliasB }, 'Admin define alias independente do mesmo membro na empresa B')
+  await rpc(adminA.client, 'update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: manager.id, p_display_name: colleagueAlias }, 'Admin define alias do colega temporário')
+  const aliased = await accountNameSnapshot(closerA)
+  accountPreserved(beforeCloser, aliased, 'Aliases administrativos preservam e-mail, Auth, metadados e papéis do membro')
+  check(aliased.auth.userMetadata.display_name === beforeCloser.auth.userMetadata.display_name && aliased.profile.display_name === beforeCloser.profile.display_name,
+    'Alias administrativo não altera o nome global em Auth nem no perfil')
+  check(aliased.memberships.find(row => row.workspace_id === workspaceA.id)?.display_name === aliasA && aliased.memberships.find(row => row.workspace_id === workspaceB.id)?.display_name === aliasB,
+    'O mesmo usuário mantém aliases diferentes nas duas empresas')
+  check(await rosterName(adminA.client, workspaceA.id, closerA.id) === aliasA && await rosterName(adminB.client, workspaceB.id, closerA.id) === aliasB,
+    'Listagem de membros resolve o alias somente da empresa consultada')
+  check(await rosterName(manager.client, workspaceA.id, closerA.id) === aliasA, 'Gestor lê o nome efetivo da própria equipe sem alterá-lo')
+
+  for (const [name, args] of [
+    ['update_my_display_name', { p_display_name: 'Nome anônimo indevido' }],
+    ['update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: 'Alias anônimo indevido' }],
+    ['rename_workspace', { p_workspace_id: workspaceA.id, p_name: 'Empresa anônima indevida' }],
+  ]) check(Boolean((await anonymous.rpc(name, args)).error), 'Sem login não há permissão para alterar nomes')
+  check(isDeepStrictEqual(await accountNameSnapshot(closerA), aliased), 'Tentativas anônimas deixam nome e aliases intactos')
+
+  await rpc(closerA.client, 'update_my_display_name', { p_display_name: '  Nome global temporário escolhido  ' }, 'Conta altera o próprio nome usando UID implícito da sessão')
+  const global = await accountNameSnapshot(closerA)
+  accountPreserved(aliased, global, 'Nome próprio global preserva identidade, e-mails, preferências e papéis')
+  check(global.auth.userMetadata.display_name === 'Nome global temporário escolhido' && global.profile.display_name === 'Nome global temporário escolhido',
+    'Nome próprio é normalizado e sincronizado em Auth e perfil')
+  check(isDeepStrictEqual(global.memberships, aliased.memberships), 'Nome próprio sem contexto conserva todos os aliases das empresas')
+  check(isDeepStrictEqual(await accountNameSnapshot(closerB), beforeColleague), 'UID implícito não modifica a identidade de outro membro')
+
+  await rpc(closerA.client, 'update_my_display_name', { p_display_name: '  Meu nome temporário atualizado  ', p_workspace_id: workspaceA.id }, 'Conta altera nome próprio no contexto da empresa A')
+  const scoped = await accountNameSnapshot(closerA)
+  accountPreserved(global, scoped, 'Nome próprio com contexto preserva e-mails, Auth protegido e papéis')
+  check(scoped.auth.userMetadata.display_name === 'Meu nome temporário atualizado' && scoped.profile.display_name === 'Meu nome temporário atualizado',
+    'Nome próprio com contexto sincroniza Auth e perfil global')
+  check(scoped.memberships.find(row => row.workspace_id === workspaceA.id)?.display_name === null && scoped.memberships.find(row => row.workspace_id === workspaceB.id)?.display_name === aliasB,
+    'Nome próprio limpa somente o próprio alias da empresa selecionada')
+  check(await rosterName(adminA.client, workspaceA.id, closerA.id) === 'Meu nome temporário atualizado' && await rosterName(adminB.client, workspaceB.id, closerA.id) === aliasB,
+    'Fallback global na empresa A não vaza para o alias da empresa B')
+  check(await rosterName(adminA.client, workspaceA.id, manager.id) === colleagueAlias, 'Nome próprio preserva o alias de colegas na mesma empresa')
+  const currentUser = unwrap(await closerA.client.auth.getUser(), 'Leitura autenticada do próprio usuário atualizado').user
+  const ownProfile = unwrap(await closerA.client.from('profiles').select('id,email,display_name').eq('id', closerA.id).single(), 'Leitura autenticada do próprio perfil atualizado')
+  check(currentUser.id === closerA.id && currentUser.email === closerA.email && currentUser.user_metadata.display_name === scoped.profile.display_name
+    && ownProfile.email === closerA.email && ownProfile.display_name === scoped.profile.display_name, 'Auth e perfil retornam o nome escolhido mantendo o mesmo e-mail da conta')
+
+  const spoofedUid = await closerA.client.rpc('update_my_display_name', { p_display_name: 'UID alvo indevido', p_workspace_id: workspaceA.id, p_user_id: closerB.id })
+  check(Boolean(spoofedUid.error), 'RPC de nome próprio não aceita UID escolhido pelo cliente')
+  check(isDeepStrictEqual(await accountNameSnapshot(closerA), scoped) && isDeepStrictEqual(await accountNameSnapshot(closerB), beforeColleague),
+    'UID forjado não modifica o próprio nome nem o nome de outra conta')
+
+  for (const [fixture, roleLabel] of [[manager, 'Gestor'], [viewer, 'Leitor'], [adminA, 'Administrador'], [platform, 'Operador da plataforma']]) {
+    const before = await accountNameSnapshot(fixture)
+    const chosen = `Nome próprio temporário ${roleLabel}`
+    await rpc(fixture.client, 'update_my_display_name', { p_display_name: chosen }, 'Conta autenticada altera somente seu nome próprio')
+    const after = await accountNameSnapshot(fixture)
+    check(after.auth.userMetadata.display_name === chosen && after.profile.display_name === chosen, `${roleLabel} pode atualizar o próprio nome global`)
+    accountPreserved(before, after, 'Alteração própria preserva e-mails, metadados extras e papéis existentes')
+    check(isDeepStrictEqual(before.memberships, after.memberships), 'Alteração própria sem contexto mantém aliases locais')
+  }
+  check(unwrap(await platform.client.from('platform_admins').select('user_id').eq('user_id', platform.id), 'Conferência do papel temporário de plataforma').length === 1,
+    'Nome próprio do operador preserva o papel existente de plataforma')
+  check(unwrap(await closerA.client.from('platform_admins').select('user_id').eq('user_id', closerA.id), 'Conferência de ausência de elevação da conta').length === 0,
+    'Nome próprio não concede papel administrativo de plataforma')
+
+  const protectedTarget = await accountNameSnapshot(closerA), protectedWorkspaceA = await workspaceNameSnapshot(workspaceA.id)
+  for (const [caller, roleLabel] of [[manager, 'Gestor'], [closerB, 'Closer'], [viewer, 'Leitor'], [platform, 'Plataforma sem vínculo administrativo']]) {
+    check(Boolean((await caller.client.rpc('update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: 'Alias não autorizado' })).error), `${roleLabel} não altera o alias de outro membro`)
+    check(Boolean((await caller.client.rpc('rename_workspace', { p_workspace_id: workspaceA.id, p_name: 'Empresa não autorizada' })).error), `${roleLabel} não renomeia a empresa pela API`)
+    check(isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget) && isDeepStrictEqual(await workspaceNameSnapshot(workspaceA.id), protectedWorkspaceA),
+      'Negação de nomes preserva conta, vínculos, empresa e metas originais')
+  }
+  for (const [caller, roleLabel] of [[manager, 'Gestor'], [closerB, 'Closer'], [viewer, 'Leitor'], [adminA, 'Administrador'], [platform, 'Operador da plataforma']]) {
+    await deniedWrite(caller.client.from('profiles').update({ display_name: 'Nome global alheio indevido' }).eq('id', closerA.id).select('id'),
+      async () => isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget), `${roleLabel} não contorna a RPC para alterar o perfil global alheio`)
+  }
+  await deniedWrite(adminA.client.from('memberships').update({ display_name: 'Alias por escrita direta' }).eq('workspace_id', workspaceA.id).eq('user_id', closerA.id).select('user_id'),
+    async () => isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget), 'Alias administrativo exige a RPC autorizada, mesmo para o administrador')
+  await deniedWrite(adminA.client.from('workspaces').update({ name: 'Empresa por escrita direta' }).eq('id', workspaceA.id).select('id'),
+    async () => isDeepStrictEqual(await workspaceNameSnapshot(workspaceA.id), protectedWorkspaceA), 'Nome canônico da empresa exige a RPC autorizada')
+
+  const protectedWorkspaceB = await workspaceNameSnapshot(workspaceB.id)
+  check(Boolean((await adminA.client.rpc('update_member_display_name', { p_workspace_id: workspaceB.id, p_user_id: closerA.id, p_display_name: 'Alias entre empresas' })).error), 'Admin de A não altera o alias do mesmo usuário em B')
+  check(Boolean((await adminA.client.rpc('rename_workspace', { p_workspace_id: workspaceB.id, p_name: 'Empresa B alterada por A' })).error), 'Admin de A não renomeia a empresa B')
+  check(Boolean((await adminA.client.rpc('update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: adminB.id, p_display_name: 'Membro estrangeiro' })).error), 'Admin não cria alias para membro de outra empresa')
+  check(isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget) && isDeepStrictEqual(await workspaceNameSnapshot(workspaceB.id), protectedWorkspaceB),
+    'Tentativas entre empresas preservam alias, nome, dono e metas da empresa B')
+
+  const invalidNames = [null, '', ' ', 'A', 'a'.repeat(121), 'Nome\ncontrole']
+  for (const invalidName of invalidNames) {
+    check(Boolean((await closerA.client.rpc('update_my_display_name', { p_display_name: invalidName, p_workspace_id: workspaceA.id })).error), 'Nome próprio inválido é rejeitado pela API real')
+    // Company names retain the existing 1–120 contract; personal names/aliases require 2–120.
+    if (invalidName !== 'A') check(Boolean((await adminA.client.rpc('rename_workspace', { p_workspace_id: workspaceA.id, p_name: invalidName })).error), 'Nome de empresa inválido é rejeitado pela API real')
+    if (invalidName !== null) check(Boolean((await adminA.client.rpc('update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: invalidName })).error), 'Alias inválido é rejeitado pela API real')
+  }
+  check(isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget) && isDeepStrictEqual(await workspaceNameSnapshot(workspaceA.id), protectedWorkspaceA),
+    'Nomes inválidos não alteram parcialmente Auth, perfil, aliases nem dados da empresa')
+
+  for (const [fixture, scope] of [[adminA, workspaceB.id], [closerA, randomUUID()], [closerA, 'not-a-uuid'], [platform, workspaceA.id]]) {
+    const before = await accountNameSnapshot(fixture)
+    check(Boolean((await fixture.client.rpc('update_my_display_name', { p_display_name: 'Atualização global indevida', p_workspace_id: scope })).error), 'Contexto estrangeiro, inexistente ou inválido impede mudança do nome próprio')
+    check(isDeepStrictEqual(await accountNameSnapshot(fixture), before), 'Contexto inválido rejeita atomicamente nome global, Auth e aliases')
+  }
+  await rpc(adminA.client, 'update_member', { p_workspace_id: workspaceA.id, p_user_id: closerB.id, p_role: 'closer', p_is_active: false }, 'Desativação controlada de conta temporária para validar contexto próprio')
+  const inactiveBefore = await accountNameSnapshot(closerB)
+  check(Boolean((await closerB.client.rpc('update_my_display_name', { p_display_name: 'Nome indevido com vínculo inativo', p_workspace_id: workspaceA.id })).error), 'Vínculo inativo não autoriza alteração própria com contexto da empresa')
+  check(isDeepStrictEqual(await accountNameSnapshot(closerB), inactiveBefore), 'Vínculo inativo rejeita atomicamente a alteração global')
+  await rpc(adminA.client, 'update_member', { p_workspace_id: workspaceA.id, p_user_id: closerB.id, p_role: 'closer', p_is_active: true }, 'Restauração do vínculo temporário para os demais testes')
+
+  await rpc(adminA.client, 'update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: 'Alias administrativo final A' }, 'Admin altera alias somente da própria empresa')
+  const finalAlias = await accountNameSnapshot(closerA)
+  accountPreserved(protectedTarget, finalAlias, 'Alias autorizado final preserva e-mails, dados globais e papéis do usuário')
+  check(finalAlias.auth.userMetadata.display_name === protectedTarget.auth.userMetadata.display_name && finalAlias.profile.display_name === protectedTarget.profile.display_name
+    && finalAlias.memberships.find(row => row.workspace_id === workspaceA.id)?.display_name === 'Alias administrativo final A'
+    && finalAlias.memberships.find(row => row.workspace_id === workspaceB.id)?.display_name === aliasB, 'Admin altera apenas o alias de A, preservando nome global e alias de B')
+  await rpc(adminA.client, 'update_member_display_name', { p_workspace_id: workspaceA.id, p_user_id: closerA.id, p_display_name: null }, 'Admin remove o alias local opcional')
+  check(await rosterName(adminA.client, workspaceA.id, closerA.id) === protectedTarget.profile.display_name && await rosterName(adminB.client, workspaceB.id, closerA.id) === aliasB,
+    'Remover alias local retorna ao nome global sem remover o alias de outra empresa')
+
+  unwrap(await manager.client.from('workspace_settings').update({ name: 'Apresentação temporária independente', commission_rate: 19, revenue_goal: 333000 }).eq('workspace_id', workspaceA.id).select('workspace_id').single(),
+    'Configuração comercial temporária distingue apresentação e nome canônico')
+  const beforeRename = await workspaceNameSnapshot(workspaceA.id)
+  const renamed = `Empresa temporária renomeada ${salt}`
+  await rpc(adminA.client, 'rename_workspace', { p_workspace_id: workspaceA.id, p_name: '  A  ' }, 'Nome de empresa de um caractere mantém compatibilidade')
+  const shortName = await workspaceNameSnapshot(workspaceA.id)
+  check(shortName.workspace.name === 'A' && shortName.workspace.owner_id === beforeRename.workspace.owner_id && isDeepStrictEqual(shortName.settings, beforeRename.settings),
+    'Empresa aceita nome de um caractere sem modificar dono, apresentação ou metas')
+  await rpc(adminA.client, 'rename_workspace', { p_workspace_id: workspaceA.id, p_name: `  ${renamed}  ` }, 'Admin renomeia somente a própria empresa')
+  const afterRename = await workspaceNameSnapshot(workspaceA.id)
+  check(afterRename.workspace.name === renamed && afterRename.workspace.owner_id === beforeRename.workspace.owner_id, 'Nome canônico é normalizado sem alterar o dono da empresa')
+  check(isDeepStrictEqual(afterRename.settings, beforeRename.settings), 'Renomear empresa preserva apresentação legada, meta e comissão')
+  check(isDeepStrictEqual(await workspaceNameSnapshot(workspaceB.id), protectedWorkspaceB), 'Renomear empresa A preserva todos os nomes e metas da empresa B')
+  workspaceA.name = renamed
+  check(isDeepStrictEqual(await accountNameSnapshot(closerA), protectedTarget), 'Renomear empresa preserva Auth, perfil, e-mails, aliases e papéis do membro')
 }
 
 async function run() {
@@ -129,6 +301,8 @@ async function run() {
   const invalid = '0'.repeat(64)
   check((await rpc(anonymous, 'list_invitation_preview', { p_token: invalid }, 'Prévia de token inexistente')) === null, 'Token inexistente não revela dados')
   check(Boolean((await closerA.client.rpc('accept_invitation', { p_token: invalid })).error), 'Token inexistente não concede acesso')
+
+  await accountNameChecks({ anonymous, platform, adminA, adminB, closerA, closerB, manager, viewer, workspaceA, workspaceB })
 
   const leadAdmin = payload(`live-${randomUUID()}`, 'Lead temporário de administrador')
   const leadA = payload(`live-${randomUUID()}`, 'Lead temporário de closer A')
@@ -256,13 +430,23 @@ async function cleanup() {
     await clean(service.from('platform_admins').delete().in('user_id', userIds), 'Papel administrativo temporário')
     for (const user of users) await clean(service.auth.admin.deleteUser(user.id), 'Conta temporária de autenticação')
   }
-  if (ids.length) {
-    const remaining = await service.from('workspaces').select('id').in('id', ids)
-    if (remaining.error || remaining.data?.length) { cleanupFailed = true; console.error('CLEANUP FAILED: Conferência das empresas temporárias') }
+  if (ids.length) for (const [table, column] of [
+    ['workspaces', 'id'], ['memberships', 'workspace_id'], ['workspace_settings', 'workspace_id'], ['subscriptions', 'workspace_id'],
+    ['invitations', 'workspace_id'], ['leads', 'workspace_id'], ['pipelines', 'workspace_id'], ['pipeline_stages', 'workspace_id'],
+    ['call_reviews', 'workspace_id'], ['audit_logs', 'workspace_id'],
+  ]) {
+    const remaining = await service.from(table).select(column, { head: true, count: 'exact' }).in(column, ids)
+    if (remaining.error || remaining.count !== 0) { cleanupFailed = true; console.error('CLEANUP FAILED: Conferência de dados das empresas temporárias') }
   }
-  if (userIds.length) {
-    const remaining = await service.from('profiles').select('id').in('id', userIds)
-    if (remaining.error || remaining.data?.length) { cleanupFailed = true; console.error('CLEANUP FAILED: Conferência das contas temporárias') }
+  if (userIds.length) for (const [table, column] of [['profiles', 'id'], ['policy_acceptances', 'user_id'], ['platform_admins', 'user_id'], ['audit_logs', 'actor_id']]) {
+    const remaining = await service.from(table).select(column, { head: true, count: 'exact' }).in(column, userIds)
+    if (remaining.error || remaining.count !== 0) { cleanupFailed = true; console.error('CLEANUP FAILED: Conferência de dados das contas temporárias') }
+  }
+  for (const user of users) {
+    const removed = await service.auth.admin.getUserById(user.id)
+    if (removed.data?.user || !removed.error || (removed.error.status !== 404 && removed.error.code !== 'user_not_found')) {
+      cleanupFailed = true; console.error('CLEANUP FAILED: Conferência das contas temporárias de autenticação')
+    }
   }
   for (const api of clients) api.auth.stopAutoRefresh()
   if (!cleanupFailed) console.log('CLEANUP: todas as contas e empresas temporárias removidas.')

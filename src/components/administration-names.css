@@ -1,0 +1,121 @@
+/* Name editing belongs to the authenticated company administration. */
+.crm-visual .ad-name-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  min-width: 0;
+}
+
+.crm-visual .ad-name-heading > strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+  max-width: 260px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.crm-visual .ad-name-action {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.crm-visual .ad-name-action:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-primary);
+}
+
+.crm-visual .ad-name-action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.crm-visual .ad-company-name-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.crm-visual .ad-company-name-body > div {
+  min-width: 0;
+}
+
+.crm-visual .ad-company-name-body > div > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.crm-visual .ad-company-name-body > div > strong {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.crm-visual .ad-company-name-body > button {
+  flex-shrink: 0;
+}
+
+.crm-visual .ad-modal.ad-name-modal {
+  width: 480px;
+  max-width: 100%;
+}
+
+.crm-visual .ad-name-modal .ad-modal-header p {
+  overflow-wrap: anywhere;
+}
+
+.crm-visual .ad-name-modal .ad-name-help {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.crm-visual .ad-name-modal .ad-modal-fields > .ad-error {
+  margin: 0;
+}
+
+@media (max-width: 680px) {
+  .crm-visual .ad-name-action {
+    min-height: 40px;
+    padding: 8px 6px;
+  }
+
+  .crm-visual .ad-company-name-body {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .crm-visual .ad-company-name-body > button {
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .crm-visual .ad-name-modal input {
+    font-size: 16px;
+  }
+}

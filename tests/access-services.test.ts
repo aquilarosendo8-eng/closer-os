@@ -27,6 +27,45 @@ beforeEach(async () => {
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
+describe('profile and company name adapters', () => {
+  it('updates only the authenticated profile through a server-derived identity and current workspace', async () => {
+    await expect(access.updateMyDisplayName(' Maria Silva ', WORKSPACE)).resolves.toBeUndefined()
+    expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('update_my_display_name', { p_display_name: 'Maria Silva', p_workspace_id: WORKSPACE })
+    expect(mock.fetch).not.toHaveBeenCalled()
+    expect(mock.signUp).not.toHaveBeenCalled()
+  })
+  it('allows the authenticated account without a workspace to edit its own name', async () => {
+    await access.updateMyDisplayName('Maria Silva')
+    expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('update_my_display_name', { p_display_name: 'Maria Silva', p_workspace_id: null })
+  })
+  it('sends a member name to the scoped RPC without role, email or Auth metadata changes', async () => {
+    const userId = '20000000-0000-4000-8000-000000000002'
+    await access.administrationService.updateMemberName(WORKSPACE, userId, ' Maria na equipe ')
+    expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('update_member_display_name', { p_workspace_id: WORKSPACE, p_user_id: userId, p_display_name: 'Maria na equipe' })
+    expect(mock.fetch).not.toHaveBeenCalled()
+  })
+  it('renames only the selected company through its authenticated RPC', async () => {
+    await access.administrationService.renameWorkspace(WORKSPACE, ' Empresa Aurora ')
+    expect(mock.rpc).toHaveBeenCalledExactlyOnceWith('rename_workspace', { p_workspace_id: WORKSPACE, p_name: 'Empresa Aurora' })
+  })
+  it('rejects blank names and control characters before attempting writes', async () => {
+    for (const name of [' ', 'A', 'Maria\nSilva', 'A'.repeat(121)]) {
+      await expect(access.updateMyDisplayName(name, WORKSPACE)).rejects.toThrow('nome')
+      await expect(access.administrationService.updateMemberName(WORKSPACE, 'user', name)).rejects.toThrow('nome')
+    }
+    for (const name of [' ', 'Empresa\nAurora', 'A'.repeat(121)]) await expect(access.administrationService.renameWorkspace(WORKSPACE, name)).rejects.toThrow('empresa')
+    expect(mock.rpc).not.toHaveBeenCalled()
+  })
+  it('propagates a server authorization refusal without using another write route', async () => {
+    const error = { code: '42501', message: 'Somente administrador da empresa.' }
+    mock.rpc.mockResolvedValue({ data: null, error })
+    await expect(access.administrationService.updateMemberName(WORKSPACE, 'user', 'Maria Silva')).rejects.toEqual(error)
+    await expect(access.administrationService.renameWorkspace(WORKSPACE, 'Aurora')).rejects.toEqual(error)
+    await expect(access.updateMyDisplayName('Maria Silva', WORKSPACE)).rejects.toEqual(error)
+    expect(mock.fetch).not.toHaveBeenCalled()
+  })
+})
+
 describe('public account registration adapter', () => {
   it('uses PKCE and a clean signup redirect with only unprivileged onboarding hints', async () => {
     await expect(supabase.signUpAccount({ ...input, role: 'admin', workspaceId: WORKSPACE } as any)).resolves.toEqual({ pendingConfirmation: true })

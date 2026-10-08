@@ -85,6 +85,8 @@ export interface WorkspacePrivacy {
 export interface AdministrationService {
   listMembers(workspaceId: string): Promise<Membership[]>
   updateMember(workspaceId: string, userId: string, changes: MemberUpdate): Promise<void>
+  updateMemberName(workspaceId: string, userId: string, displayName: string): Promise<void>
+  renameWorkspace(workspaceId: string, name: string): Promise<void>
   listInvitations(workspaceId: string): Promise<Invitation[]>
   createInvitation(workspaceId: string, input: InvitationInput): Promise<EmailInvitationResult>
   createManualInvitation(workspaceId: string, input: InvitationInput): Promise<ManualInvitationResult>

@@ -1,0 +1,20 @@
+.crm-visual:has(> .account-state .account-profile) { display: flow-root; }
+.crm-visual .account-profile { margin-top: 26px; padding-top: 24px; border-top: 1px solid var(--color-border); }
+.crm-visual .account-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.crm-visual .account-profile-heading h2 { font-size: 17px; font-weight: 700; color: var(--color-text-primary); }
+.crm-visual .account-profile-heading p, .crm-visual .account-profile-help { color: var(--color-text-secondary); font-size: 12px; line-height: 1.7; margin-top: 5px; }
+.crm-visual .account-profile-heading > svg { color: var(--color-primary); }
+.crm-visual .account-profile-field { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; font-size: 13px; font-weight: 550; color: var(--color-text-primary); }
+.crm-visual .account-profile-field input { width: 100%; min-width: 0; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); background: var(--color-surface); font-size: 14px; }
+.crm-visual .account-profile-field input[readonly] { background: var(--color-surface-raised); color: var(--color-text-secondary); }
+.crm-visual .account-profile-field input:focus-visible { outline: none; border-color: var(--color-primary); box-shadow: var(--focus-ring); }
+.crm-visual .account-profile-email { display: flex; align-items: center; gap: 9px; padding-left: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-secondary); background: var(--color-surface-raised); }
+.crm-visual .account-profile-email input { border: 0; padding-left: 0; background: transparent; }
+.crm-visual .account-profile-error, .crm-visual .account-profile-success { padding: 12px; border-radius: var(--radius-sm); margin-top: 16px; font-size: 13px; line-height: 1.7; }
+.crm-visual .account-profile-error { color: var(--color-danger); background: var(--color-danger-soft); }
+.crm-visual .account-profile-success { display: flex; gap: 8px; align-items: center; color: var(--color-success); background: var(--color-success-soft); }
+.crm-visual .account-profile-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.account-profile-spinning { animation: account-profile-spin 1s linear infinite; }
+@keyframes account-profile-spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) { .crm-visual .account-profile-field input { font-size: 16px; } }
+@media (prefers-reduced-motion: reduce) { .account-profile-spinning { animation: none; } }

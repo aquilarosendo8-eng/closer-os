@@ -30,7 +30,7 @@ export interface AccessSnapshot { workspaces: WorkspaceAccess[]; isPlatformAdmin
 export async function loadAccess(user: User): Promise<AccessSnapshot> {
   const client = requireSupabase()
   const [membershipResult, adminResult, profileResult] = await Promise.all([
-    client.from('memberships').select('workspace_id,user_id,role,is_active').eq('user_id', user.id).eq('is_active', true),
+    client.from('memberships').select('workspace_id,user_id,role,is_active,display_name').eq('user_id', user.id).eq('is_active', true),
     client.from('platform_admins').select('user_id').eq('user_id', user.id),
     client.from('profiles').select('display_name,email').eq('id', user.id).maybeSingle(),
   ])
@@ -52,7 +52,7 @@ export async function loadAccess(user: User): Promise<AccessSnapshot> {
     const settings = settingsResult.data?.find(value => value.workspace_id === row.workspace_id)
     return [{
       workspace: { id: workspace.id, name: workspace.name, ownerId: workspace.owner_id, createdAt: workspace.created_at, settings: settings ? { name: settings.name, commissionRate: Number(settings.commission_rate), revenueGoal: Number(settings.revenue_goal) } : { ...defaultSettings, name: displayName } },
-      membership: { userId: user.id, email: user.email || '', displayName, role: row.role as WorkspaceRole, active: row.is_active },
+      membership: { userId: user.id, email: user.email || '', displayName: row.display_name || displayName, role: row.role as WorkspaceRole, active: row.is_active },
       subscription: subscription(subscriptionResult.data?.find(value => value.workspace_id === row.workspace_id) || null),
       isPlatformAdmin,
     }]
@@ -76,6 +76,18 @@ export async function createOwnWorkspace(input: { name: string; displayName: str
   assert(error)
   if (typeof data !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data)) throw new Error('Não foi possível confirmar a criação da empresa. Atualize seu acesso antes de tentar novamente.')
   return data
+}
+
+function checkedDisplayName(value: string): string {
+  const name = value.trim()
+  if (name.length < 2 || name.length > 120 || /[\u0000-\u001f\u007f-\u009f]/u.test(name)) throw new Error('Informe um nome com 2 a 120 caracteres, sem caracteres de controle.')
+  return name
+}
+
+/** The server derives the account from auth.uid(); no user ID or email is writable. */
+export async function updateMyDisplayName(displayName: string, workspaceId?: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('update_my_display_name', { p_display_name: checkedDisplayName(displayName), p_workspace_id: workspaceId || null })
+  assert(error)
 }
 
 async function requestInvitation(workspaceId: string, input: InvitationInput, manual: boolean) {
@@ -105,6 +117,14 @@ export const administrationService: AdministrationService = {
     const current = (await this.listMembers(workspaceId)).find(row => row.userId === userId)
     if (!current) throw new Error('Usuário não encontrado nesta empresa.')
     const { error } = await requireSupabase().rpc('update_member', { p_workspace_id: workspaceId, p_user_id: userId, p_role: changes.role || current.role, p_is_active: changes.active ?? current.active }); assert(error)
+  },
+  async updateMemberName(workspaceId, userId, displayName) {
+    const { error } = await requireSupabase().rpc('update_member_display_name', { p_workspace_id: workspaceId, p_user_id: userId, p_display_name: checkedDisplayName(displayName) }); assert(error)
+  },
+  async renameWorkspace(workspaceId, name) {
+    const normalized = name.trim()
+    if (!normalized || normalized.length > 120 || /[\u0000-\u001f\u007f-\u009f]/u.test(normalized)) throw new Error('Informe um nome de empresa com 1 a 120 caracteres, sem caracteres de controle.')
+    const { error } = await requireSupabase().rpc('rename_workspace', { p_workspace_id: workspaceId, p_name: normalized }); assert(error)
   },
   async listInvitations(workspaceId) {
     const { data, error } = await requireSupabase().rpc('list_invitations', { p_workspace_id: workspaceId }); assert(error)

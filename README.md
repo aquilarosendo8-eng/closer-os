@@ -58,6 +58,8 @@ Conectar a integração fornece configurações; o build configurado é que inst
 
 O banco valida as permissões mesmo em chamadas diretas à API. Desativação, vencimento e suspensão são conferidos a cada requisição; não dependem de esconder botões.
 
+Edição de nomes: cada pessoa altera o próprio nome em **Minha conta**; o administrador ativo edita o nome da empresa e os nomes dos membros exclusivamente nela. O e-mail permanece somente para consulta. Consulte [Perfis e nomes](docs/PERFIS-E-NOMES.md) para permissões, implementação e validação.
+
 ## Validação
 
 ```bash
