@@ -3,10 +3,26 @@
 ## Como usar
 
 - **Minha conta → Editar nome:** qualquer usuário autenticado altera o próprio nome de exibição. O e-mail permanece somente para consulta. Os campos pessoais existentes foram reutilizados; não foram adicionados telefone, documento ou outros dados pessoais.
-- **Administrar → Equipe → Editar nome:** o administrador ativo da empresa altera o nome exibido por um membro naquela empresa. A identificação global da conta e o nome usado em outras empresas não são modificados.
+- **Administrar → Equipe → Editar nome:** ao editar a si mesmo, o administrador ativo usa a mesma atualização do nome pessoal de Minha conta. Ao editar outro membro, altera somente o nome exibido naquela empresa, preservando o perfil global e os aliases das outras empresas.
 - **Administrar → Empresa → Editar nome da empresa:** o administrador ativo altera o nome da empresa selecionada.
 
 Os formulários identificam campos editáveis, confirmam o salvamento e permitem tentar novamente após uma falha. A interface mantém os tokens dos temas claro e escuro, com suporte a telas móveis e teclado.
+
+## Consistência do nome pessoal — correção 007
+
+O nome pessoal tem como fonte de leitura `profiles.display_name`, carregado em `snapshot.displayName`. O cabeçalho de Minha conta e o campo Nome de exibição usam esse mesmo valor. O nome no workspace continua resolvendo `memberships.display_name` com fallback para o perfil; um alias da empresa não substitui o nome pessoal na página da conta. Metadados antigos da sessão Auth não sobrescrevem um nome válido do perfil.
+
+A autoedição em Administração → Equipe delega a `updateMyDisplayName`, como Minha conta. A RPC `update_my_display_name` atualiza somente o nome nos metadados Auth; o trigger existente espelha essa atualização em `profiles`, sem um segundo caminho de escrita ou sincronização circular. O alias do próprio usuário é limpo apenas na empresa selecionada, que passa a acompanhar o nome pessoal; aliases de outras empresas permanecem preservados. Após salvar, o acesso e a lista de membros são recarregados para atualizar a interface sem exigir novo login.
+
+A inicialização também tinha um caminho concorrente: `setup_owner(p_name)` copiava o nome da sessão diretamente para o perfil em cada acesso do proprietário. A interface agora passa `p_name: null`; a migration 007 impede que clientes antigos sobrescrevam um perfil preenchido. O parâmetro legado continua podendo semear somente um perfil vazio, usando o mesmo sentido Auth → trigger → perfil, com os controles de bootstrap e permissões anteriores.
+
+A leitura pós-salvamento tem prioridade: respostas anteriores são ignoradas e atualizações automáticas aguardam a mesma leitura antes de confirmar sucesso. Se a gravação persistir e a atualização da tela falhar, a mensagem distingue essas duas situações; Atualizar acesso relê o perfil sem repetir a edição.
+
+A migration `202610090007_canonical_self_member_names.sql` protege também chamadas diretas: depois de verificar o administrador ativo, `update_member_display_name` delega à RPC pessoal quando o alvo é o próprio usuário e o nome não é `NULL`. Para outro membro, continua alterando somente o alias da empresa, sem escrever em seu perfil ou Auth. `NULL` mantém a operação explícita de limpar somente o alias. As permissões e políticas RLS existentes são preservadas.
+
+Em 09/10/2026, o build passou, assim como 195 testes unitários, 44 fluxos SaaS/Admin e a suíte final de 28 fluxos de perfil no navegador. Os testes de navegador usam respostas HTTP simuladas e persistentes: cobrem o bug original, recarga, logout e novo login com metadados antigos, alias de terceiros, falhas de leitura e respostas concorrentes. O PostgreSQL descartável aprovou 730 verificações, incluindo 91 regressões novas de nomes e as cinco verificações de concorrência existentes. As migrations 001–006 permanecem intactas; o SHA256 da 007 é `90729ed1255c666d5c956363c7da0c1492e449932f819b88089bc7d0136dd3f6`.
+
+A publicação da 007 e os testes reais no Supabase ainda aguardam a validação do deploy. As evidências datadas abaixo pertencem à implementação inicial da migration 005 e não comprovam esta nova publicação.
 
 ## Permissões e isolamento
 
@@ -27,7 +43,7 @@ A migration `202610080005_account_names.sql` adiciona uma coluna opcional `membe
 Três RPCs autenticadas fazem a validação no servidor:
 
 - `update_my_display_name(p_display_name, p_workspace_id)`: usa somente `auth.uid()` como identidade. Mantém o trigger existente de sincronização entre `auth.users` e `profiles`, alterando apenas o nome nos metadados pessoais. Se houver empresa selecionada, exige vínculo ativo e limpa somente o alias do próprio usuário nessa empresa. Aliases de outras empresas são preservados.
-- `update_member_display_name(p_workspace_id, p_user_id, p_display_name)`: exige vínculo de administrador ativo na empresa informada e altera apenas o nome daquele vínculo. Não altera o perfil global nem os metadados Auth do membro.
+- `update_member_display_name(p_workspace_id, p_user_id, p_display_name)`: exige vínculo de administrador ativo na empresa informada. Com a correção 007, a autoedição de um nome não nulo delega à atualização pessoal; a edição de outro membro continua restrita ao alias daquele vínculo, preservando seu perfil global e Auth.
 - `rename_workspace(p_workspace_id, p_name)`: exige administrador ativo e altera somente `workspaces.name`. `workspace_settings.name` continua sendo a configuração de apresentação preexistente; metas, comissão e demais configurações são preservadas.
 
 `list_members` resolve o nome específico da empresa com fallback para o perfil, mantendo exatamente a autorização de leitura anterior. Nenhuma política RLS ou permissão de escrita direta em `memberships` foi ampliada. As novas ações são auditadas com identificadores, sem armazenar o texto dos nomes no evento.
@@ -36,7 +52,7 @@ Nomes pessoais e de membros aceitam 2–120 caracteres; o nome da empresa aceita
 
 As migrations 001–004 permanecem imutáveis. O checksum da migration 005 é `d58b537d7c2785fb77a8301a655813b31923ad35a061995292e17a46770bf006`.
 
-## Validação local
+## Validação local da implementação inicial (005)
 
 ```bash
 npm test
@@ -49,7 +65,7 @@ npm run test:db
 
 Em 08/10/2026 passaram 129 testes unitários, 44 fluxos SaaS/Admin, 15 testes dos temas e 20 novos fluxos de perfil/Admin. O PostgreSQL descartável aprovou 442 verificações, incluindo 121 novas para nomes e as suítes concorrentes existentes. Os novos testes de interface usam respostas simuladas; os testes SQL verificam as permissões reais das funções e tabelas.
 
-## Publicação
+## Publicação da implementação inicial (005)
 
 O provisionador existente aplica somente a migration pendente, com transação, checksum e trava contra builds concorrentes. O frontend usa exclusivamente a chave pública e a sessão autenticada. Nenhuma chave administrativa é incorporada ao navegador.
 
@@ -67,6 +83,6 @@ A comparação do estado anterior e posterior à migração confirmou a preserva
 
 - Interface: `src/SaaSApp.tsx`, `src/components/AccountProfile.tsx`, `src/components/account-profile.css`, `src/components/Administration.tsx`, `src/components/administration-names.css`.
 - Acesso: `src/lib/access.ts`, `src/lib/access-types.ts`.
-- Banco: `supabase/migrations/202610080005_account_names.sql`.
+- Banco: `supabase/migrations/202610080005_account_names.sql`; correção de autoedição em `supabase/migrations/202610090007_canonical_self_member_names.sql`.
 - Testes: `tests/access-services.test.ts`, `tests/profile.spec.ts`, `tests/fixtures/profile.ts`, `playwright.profile.config.ts`, `supabase/tests/account-names.sql`, `scripts/test-database.sh`, `scripts/test-live.mjs`.
 - Documentação: este arquivo e a referência no `README.md`.

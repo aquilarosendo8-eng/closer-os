@@ -38,16 +38,18 @@ export default function AccountProfile({ userId, displayName, email, workspaceId
     event.preventDefault()
     if (pending) return
     const requestedScope = scope
+    let saved = false
     setPending(true); setError(''); setNotice('')
     try {
       await updateMyDisplayName(draft, workspaceId)
+      saved = true
       if (currentScope.current !== requestedScope) return
       await onSaved()
       if (currentScope.current !== requestedScope) return
       setEditing(false); setNotice('Nome atualizado com sucesso.')
       editButtonRef.current?.focus()
     } catch (cause) {
-      if (currentScope.current === requestedScope) setError(readableError(cause))
+      if (currentScope.current === requestedScope) setError(saved ? 'Seu nome foi salvo, mas não foi possível atualizar a tela. Use Atualizar acesso antes de tentar novamente.' : readableError(cause))
     } finally { if (currentScope.current === requestedScope) setPending(false) }
   }
 

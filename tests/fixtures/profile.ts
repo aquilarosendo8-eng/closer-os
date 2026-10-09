@@ -21,30 +21,39 @@ export interface ProfileState {
   failOwnName: boolean
   failMemberName: boolean
   failWorkspaceName: boolean
+  failProfileReads: number
+  delayNextProfileRead: Promise<void> | null
 }
 export function createProfileState(): ProfileState {
   return { names: Object.fromEntries(Object.entries(profileUserIds).map(([role, id]) => [id, originalNames[role as ProfileRole]])),
     workspaceNames: { [profileWorkspaceA]: 'Aurora Comercial', [profileWorkspaceB]: 'Outra Empresa' },
     overrides: { [profileWorkspaceA]: {}, [profileWorkspaceB]: {} },
-    requests: [], unexpected: [], errors: [], failOwnName: false, failMemberName: false, failWorkspaceName: false }
+    requests: [], unexpected: [], errors: [], failOwnName: false, failMemberName: false, failWorkspaceName: false,
+    failProfileReads: 0, delayNextProfileRead: null }
 }
 export const profileEmail = (role: ProfileRole) => `${role}@example.invalid`
 export const effectiveProfileName = (state: ProfileState, workspaceId: string, userId: string) => state.overrides[workspaceId]?.[userId] || state.names[userId]
 
 // Browser fixtures test UI and RPC contracts, never production accounts. The
 // independent PostgreSQL suite verifies actual authorization and isolation.
-export async function mountProfile(page: Page, role: ProfileRole = 'admin', options: { state?: ProfileState; twoWorkspaces?: boolean; theme?: 'light' | 'dark' } = {}) {
+export async function mountProfile(page: Page, role: ProfileRole = 'admin', options: { state?: ProfileState; twoWorkspaces?: boolean; theme?: 'light' | 'dark'; staleAuthName?: string } = {}) {
   const state = options.state || createProfileState(), userId = profileUserIds[role], email = profileEmail(role)
   const allowedIds = role === 'platform' ? [] : options.twoWorkspaces ? [profileWorkspaceA, profileWorkspaceB] : [profileWorkspaceA]
   const user = { id: userId, aud: 'authenticated', role: 'authenticated', email,
-    app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { display_name: originalNames[role] },
+    // Auth metadata deliberately stays unchanged when the canonical profile is renamed.
+    // Re-issued login sessions must not override a valid profiles.display_name.
+    app_metadata: { provider: 'email', providers: ['email'] }, user_metadata: { display_name: options.staleAuthName || originalNames[role] },
     created_at: '2026-10-01T00:00:00Z', email_confirmed_at: '2026-10-01T00:00:00Z', identities: [] }
   const payload = { sub: userId, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 }
   const jwt = `${Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')}.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.profile-fixture`
   const session = { access_token: jwt, token_type: 'bearer', refresh_token: 'profile-fixture-refresh-token', expires_in: 3600, expires_at: payload.exp, user }
   page.on('pageerror', error => state.errors.push(error.message))
   await page.addInitScript(({ session, theme }) => {
-    localStorage.setItem('sb-test-auth-token', JSON.stringify(session))
+    // Seed once per tab, rather than silently logging back in on every reload.
+    if (!sessionStorage.getItem('profile-session-seeded')) {
+      localStorage.setItem('sb-test-auth-token', JSON.stringify(session))
+      sessionStorage.setItem('profile-session-seeded', '1')
+    }
     if (theme && !sessionStorage.getItem('profile-theme-seeded')) { localStorage.setItem('closer-os-theme-v1', theme); sessionStorage.setItem('profile-theme-seeded', '1') }
   }, { session, theme: options.theme })
   await page.route('https://test.supabase.co/**', async route => {
@@ -56,9 +65,19 @@ export async function mountProfile(page: Page, role: ProfileRole = 'admin', opti
     if (method === 'OPTIONS') { await route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } }); return }
     if (path === '/auth/v1/user' && method === 'GET') { await json(user); return }
     if (path === '/auth/v1/token') { await json(session); return }
+    if (path === '/auth/v1/logout') { await json({}); return }
     if (path === '/rest/v1/rpc/setup_owner') { await json(null); return }
     if (path === '/rest/v1/platform_admins') { await json(role === 'platform' ? [{ user_id: userId }] : []); return }
-    if (path === '/rest/v1/profiles' && method === 'GET') { await json({ id: userId, display_name: state.names[userId], email }); return }
+    if (path === '/rest/v1/profiles' && method === 'GET') {
+      if (state.failProfileReads > 0) { state.failProfileReads -= 1; await json({ message: 'Não foi possível atualizar a leitura do perfil.' }, 503); return }
+      // Capture the modeled server value when the request begins, so a delayed
+      // reply can represent a truly older snapshot rather than reading new state.
+      const result = { id: userId, display_name: state.names[userId], email }
+      const delayed = state.delayNextProfileRead
+      state.delayNextProfileRead = null
+      if (delayed) await delayed
+      await json(result); return
+    }
     if (path === '/rest/v1/memberships' && method === 'GET') { await json(allowedIds.map(workspace_id => ({ workspace_id, user_id: userId, role, is_active: true, display_name: state.overrides[workspace_id][userId] || null }))); return }
     const workspace = (id: string) => ({ id, name: state.workspaceNames[id], owner_id: profileUserIds.admin, created_at: '2026-10-01T00:00:00Z' })
     const subscription = (workspace_id: string) => ({ workspace_id, status: 'active', plan: 'team', seat_limit: 10, current_period_end: '2030-01-01T00:00:00Z', billing_method: 'manual' })

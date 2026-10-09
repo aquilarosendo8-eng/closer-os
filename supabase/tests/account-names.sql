@@ -238,4 +238,340 @@ select test.ok((select role='closer' and is_active from public.memberships where
 select test.ok((select count(*)=0 from public.platform_admins),'account names: own global names never grant platform role');
 reset role;
 select test.ok(not exists(select 1 from public.audit_logs where action in ('profile.display_name_updated','membership.display_name_updated','workspace.renamed') and details::text ~ 'Nome global escolhido|Meu nome atualizado|Apelido da equipe A|Nova empresa A'),'account names: administrative name-change audit excludes personal and company names');
+
+-- Regression: the administrator's roster alias used to look correct while their
+-- personal account still read an old global name. Self-editing the roster must
+-- now update the canonical identity, without promoting any unrelated aliases.
+update auth.users set raw_user_meta_data=jsonb_set(raw_user_meta_data,'{display_name}','"Nome Antigo"'::jsonb)
+  where id='00000000-0000-0000-0000-000000000040';
+update public.memberships set display_name='Áquila Rosendo'
+  where workspace_id=test.value('names_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000040';
+insert into public.memberships(workspace_id,user_id,role,is_active,display_name)
+  values(test.value('names_ws_b')::uuid,'00000000-0000-0000-0000-000000000040','viewer',true,'Nome exclusivo na empresa B');
+insert into test.context values
+  ('canonical_names_metadata_40',(select raw_user_meta_data::text from auth.users where id='00000000-0000-0000-0000-000000000040')),
+  ('canonical_names_identity_40',(select (to_jsonb(u)-'raw_user_meta_data')::text from auth.users u where id='00000000-0000-0000-0000-000000000040')),
+  ('canonical_names_other_members',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id)::text from public.memberships m
+    where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)
+      and not (workspace_id=test.value('names_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000040'))),
+  ('canonical_names_other_profiles',(select jsonb_agg(to_jsonb(p) order by id)::text from public.profiles p where id<>'00000000-0000-0000-0000-000000000040')),
+  ('canonical_names_companies',(select jsonb_build_object(
+    'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w where id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)),
+    'settings',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.workspace_settings s where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)),
+    'subscriptions',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.subscriptions s where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)))::text)),
+  ('canonical_names_audit_start',(select coalesce(max(id),0)::text from public.audit_logs));
+select test.ok((select p.display_name='Nome Antigo' and m.display_name='Áquila Rosendo'
+  from public.profiles p join public.memberships m on m.user_id=p.id
+  where p.id='00000000-0000-0000-0000-000000000040' and m.workspace_id=test.value('names_ws_a')::uuid),
+  'canonical self names: fixture reproduces old personal name with correct-looking roster alias');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select public.update_member_display_name(test.value('names_ws_a')::uuid,auth.uid(),'  Áquila Rosendo  ');
+select test.ok((select display_name='Áquila Rosendo' from public.profiles where id=auth.uid()),'canonical self names: administrator roster self-edit persists trimmed canonical profile');
+select test.ok((select display_name is null from public.memberships where workspace_id=test.value('names_ws_a')::uuid and user_id=auth.uid()),'canonical self names: administrator roster self-edit clears current alias');
+select test.ok((select coalesce(m.display_name,p.display_name)='Áquila Rosendo' from public.memberships m join public.profiles p on p.id=m.user_id
+  where m.workspace_id=test.value('names_ws_a')::uuid and m.user_id=auth.uid()),'canonical self names: selected workspace and personal profile resolve the same name');
+select test.ok((select entry->>'display_name'='Áquila Rosendo' from jsonb_array_elements(public.list_members(test.value('names_ws_a')::uuid)) entry
+  where entry->>'user_id'=auth.uid()::text),'canonical self names: administration roster reads the canonical self-name immediately');
+select test.ok((select display_name='Nome exclusivo na empresa B' and role='viewer' and is_active from public.memberships
+  where workspace_id=test.value('names_ws_b')::uuid and user_id=auth.uid()),'canonical self names: own other-company alias and role stay intact');
+select test.ok((select role='admin' and is_active from public.memberships where workspace_id=test.value('names_ws_a')::uuid and user_id=auth.uid()),'canonical self names: self-edit retains administrator role and active state');
+reset role;
+select test.ok((select raw_user_meta_data=test.value('canonical_names_metadata_40')::jsonb||jsonb_build_object('display_name','Áquila Rosendo')
+  from auth.users where id='00000000-0000-0000-0000-000000000040'),'canonical self names: Auth canonical name changes while full name policies and preferences persist');
+select test.ok((select to_jsonb(u)-'raw_user_meta_data'=test.value('canonical_names_identity_40')::jsonb from auth.users u
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: self-edit preserves all Auth identity fields outside metadata');
+select test.ok((select jsonb_agg(to_jsonb(m) order by workspace_id,user_id)=test.value('canonical_names_other_members')::jsonb from public.memberships m
+  where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)
+    and not (workspace_id=test.value('names_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000040')),
+  'canonical self names: self-edit leaves every other membership and alias byte-for-byte unchanged');
+select test.ok((select jsonb_agg(to_jsonb(p) order by id)=test.value('canonical_names_other_profiles')::jsonb from public.profiles p
+  where id<>'00000000-0000-0000-0000-000000000040'),'canonical self names: self-edit never changes another global profile');
+select test.ok((select jsonb_build_object(
+  'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w where id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)),
+  'settings',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.workspace_settings s where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)),
+  'subscriptions',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.subscriptions s where workspace_id in (test.value('names_ws_a')::uuid,test.value('names_ws_b')::uuid)))
+  =test.value('canonical_names_companies')::jsonb),'canonical self names: self-edit preserves company settings subscriptions and ownership');
+select test.ok((select count(*)=1 and bool_and(action='profile.display_name_updated' and details='{}'::jsonb)
+  from public.audit_logs where id>test.value('canonical_names_audit_start')::bigint),'canonical self names: self-edit uses only canonical profile audit without personal names');
+
+-- Fresh reads under a cleared and renewed subject must resolve persisted data,
+-- rather than any previously loaded UI value. This is a database session test;
+-- browser reload and real Auth login are covered separately by client tests.
+set role authenticated;
+select set_config('request.jwt.claim.sub','',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Sem sessão'')',test.value('names_ws_a'),
+  '00000000-0000-0000-0000-000000000040'),'42501','canonical self names: missing identity cannot enter canonical self-edit branch');
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000044',false);
+select test.ok((select entry->>'display_name'='Nome exclusivo na empresa B' from jsonb_array_elements(public.list_members(test.value('names_ws_b')::uuid)) entry
+  where entry->>'user_id'='00000000-0000-0000-0000-000000000040'),'canonical self names: another company still resolves its independent alias after self-edit');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select test.ok((select p.display_name='Áquila Rosendo' and coalesce(m.display_name,p.display_name)='Áquila Rosendo'
+  from public.profiles p join public.memberships m on m.user_id=p.id
+  where p.id=auth.uid() and m.workspace_id=test.value('names_ws_a')::uuid),'canonical self names: fresh authenticated subject reads persisted personal and selected-workspace names');
+select test.ok((select entry->>'display_name'='Áquila Rosendo' from jsonb_array_elements(public.list_members(test.value('names_ws_a')::uuid)) entry
+  where entry->>'user_id'=auth.uid()::text),'canonical self names: roster remains canonical after resetting session role and subject');
+
+-- The same RPC still edits somebody else only inside the selected company.
+reset role;
+insert into test.context values
+  ('canonical_names_profile_42',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000042')),
+  ('canonical_names_auth_42',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000042'));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select public.update_member_display_name(test.value('names_ws_a')::uuid,'00000000-0000-0000-0000-000000000042','  Nome local do colega  ');
+select test.ok((select entry->>'display_name'='Nome local do colega' from jsonb_array_elements(public.list_members(test.value('names_ws_a')::uuid)) entry
+  where entry->>'user_id'='00000000-0000-0000-0000-000000000042'),'canonical self names: editing another member still changes only selected roster name');
+reset role;
+select test.ok((select display_name='Closer B' from public.memberships where workspace_id=test.value('names_ws_b')::uuid
+  and user_id='00000000-0000-0000-0000-000000000042'),'canonical self names: editing another member preserves their other-company alias');
+select test.ok((select to_jsonb(p)=test.value('canonical_names_profile_42')::jsonb from public.profiles p
+  where id='00000000-0000-0000-0000-000000000042'),'canonical self names: editing another member preserves their entire global profile');
+select test.ok((select to_jsonb(u)=test.value('canonical_names_auth_42')::jsonb from auth.users u
+  where id='00000000-0000-0000-0000-000000000042'),'canonical self names: editing another member never updates their Auth identity or metadata');
+
+-- Explicit NULL remains the previous alias-reset operation, including for self.
+update public.memberships set display_name='Alias próprio temporário' where workspace_id=test.value('names_ws_a')::uuid
+  and user_id='00000000-0000-0000-0000-000000000040';
+insert into test.context values
+  ('canonical_names_profile_40_after',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000040')),
+  ('canonical_names_auth_40_after',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000040')),
+  ('canonical_names_null_audit_start',(select coalesce(max(id),0)::text from public.audit_logs));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select public.update_member_display_name(test.value('names_ws_a')::uuid,auth.uid(),null);
+select test.ok((select display_name is null from public.memberships where workspace_id=test.value('names_ws_a')::uuid and user_id=auth.uid()),'canonical self names: explicit null still resets only the current self alias');
+select test.ok((select display_name='Nome exclusivo na empresa B' from public.memberships where workspace_id=test.value('names_ws_b')::uuid and user_id=auth.uid()),'canonical self names: explicit null leaves own other-company alias unchanged');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_names_profile_40_after')::jsonb from public.profiles p
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: explicit null does not mutate canonical profile');
+select test.ok((select to_jsonb(u)=test.value('canonical_names_auth_40_after')::jsonb from auth.users u
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: explicit null does not mutate Auth metadata');
+select test.ok((select count(*)=1 and bool_and(action='membership.display_name_updated' and details->>'alias_cleared'='true')
+  from public.audit_logs where id>test.value('canonical_names_null_audit_start')::bigint),'canonical self names: explicit null retains company-alias reset audit');
+
+-- Validation failures must roll back both the old alias and canonical identity.
+update public.memberships set display_name='Alias preservado na falha' where workspace_id=test.value('names_ws_a')::uuid
+  and user_id='00000000-0000-0000-0000-000000000040';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,'' '')',test.value('names_ws_a'),auth.uid()),'22023','canonical self names: blank administrator self-name is rejected');
+select test.denied(format('select public.update_member_display_name(%L,%L,''A'')',test.value('names_ws_a'),auth.uid()),'22023','canonical self names: short administrator self-name is rejected');
+select test.denied(format('select public.update_member_display_name(%L,%L,repeat(''n'',121))',test.value('names_ws_a'),auth.uid()),'22023','canonical self names: overlong administrator self-name is rejected');
+select test.denied(format('select public.update_member_display_name(%L,%L,%L)',test.value('names_ws_a'),auth.uid(),E'Nome\ncontrole'),'22023','canonical self names: administrator self-name with control character is rejected');
+select test.ok((select display_name='Alias preservado na falha' from public.memberships where workspace_id=test.value('names_ws_a')::uuid and user_id=auth.uid()),'canonical self names: failed self-name validations preserve existing current alias');
+select test.ok((select display_name='Áquila Rosendo' from public.profiles where id=auth.uid()),'canonical self names: failed self-name validations preserve canonical profile');
+reset role;
+select test.ok((select to_jsonb(u)=test.value('canonical_names_auth_40_after')::jsonb from auth.users u
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: failed self-name validations preserve Auth metadata atomically');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select public.update_member_display_name(test.value('names_ws_a')::uuid,auth.uid(),null);
+reset role;
+
+-- Delegating self-edit does not bypass the administrator boundary of this RPC.
+insert into test.context values
+  ('canonical_names_denial_profiles',(select jsonb_agg(to_jsonb(p) order by id)::text from public.profiles p)),
+  ('canonical_names_denial_auth',(select jsonb_agg(to_jsonb(u) order by id)::text from auth.users u)),
+  ('canonical_names_denial_members',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id)::text from public.memberships m));
+set role anon;
+select set_config('request.jwt.claim.sub','',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Nome anônimo canônico'')',test.value('names_ws_a'),
+  '00000000-0000-0000-0000-000000000040'),'42501','canonical self names: anonymous caller cannot enter administrator self-edit RPC');
+select test.denied(format('select public.update_my_display_name(''Nome anônimo canônico'',%L)',test.value('names_ws_a')),
+  '42501','canonical self names: anonymous caller cannot invoke canonical personal-name RPC');
+reset role;
+-- Give only the disposable assertion helpers to this role, then restore their ACLs.
+grant usage on schema test to service_role;
+grant select on test.context to service_role;
+grant insert on test.results to service_role;
+set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Serviço sem identidade'')',test.value('names_ws_a'),
+  '00000000-0000-0000-0000-000000000040'),'42501','canonical self names: service role without auth identity cannot invoke administrator self-edit');
+select test.denied(format('select public.update_my_display_name(''Serviço sem identidade'',%L)',test.value('names_ws_a')),
+  '42501','canonical self names: service role without auth identity cannot invoke canonical personal-name RPC');
+reset role;
+revoke usage on schema test from service_role;
+revoke select on test.context from service_role;
+revoke insert on test.results from service_role;
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000041',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Gestor autoeditado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: manager cannot use administrator self-edit branch');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000042',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Closer autoeditado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: closer cannot use administrator self-edit branch');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000043',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Leitor autoeditado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: viewer cannot use administrator self-edit branch');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000045',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Inativo autoeditado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: inactive member cannot use administrator self-edit branch');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Operador autoeditado'')',test.value('names_ws_b'),auth.uid()),'42501','canonical self names: platform role without company membership cannot self-edit through administrator RPC');
+select test.denied(format('select public.update_member_display_name(%L,%L,''Operador inativo autoeditado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: platform role with inactive admin membership cannot self-edit through administrator RPC');
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Nome de outra empresa'')',test.value('names_ws_b'),auth.uid()),'42501','canonical self names: admin in A with viewer membership in B cannot self-edit through B administrator RPC');
+reset role;
+select test.ok((select jsonb_agg(to_jsonb(p) order by id)=test.value('canonical_names_denial_profiles')::jsonb from public.profiles p),'canonical self names: unauthorized self-edit attempts preserve every canonical profile');
+select test.ok((select jsonb_agg(to_jsonb(u) order by id)=test.value('canonical_names_denial_auth')::jsonb from auth.users u),'canonical self names: unauthorized self-edit attempts preserve every Auth identity');
+select test.ok((select jsonb_agg(to_jsonb(m) order by workspace_id,user_id)=test.value('canonical_names_denial_members')::jsonb from public.memberships m),'canonical self names: unauthorized self-edit attempts preserve every membership alias and role');
+update public.memberships set is_active=false where workspace_id=test.value('names_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000040';
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select test.denied(format('select public.update_member_display_name(%L,%L,''Admin desativado'')',test.value('names_ws_a'),auth.uid()),'42501','canonical self names: deactivated real administrator cannot enter canonical self-edit branch');
+select test.denied(format('select public.update_my_display_name(''Admin desativado'',%L)',test.value('names_ws_a')),
+  '42501','canonical self names: deactivated administrator cannot use scoped personal-name RPC');
+reset role;
+update public.memberships set is_active=true where workspace_id=test.value('names_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000040';
+select test.ok((select to_jsonb(p)=test.value('canonical_names_profile_40_after')::jsonb from public.profiles p
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: inactive administrator rejection preserves canonical profile');
+select test.ok((select to_jsonb(u)=test.value('canonical_names_auth_40_after')::jsonb from auth.users u
+  where id='00000000-0000-0000-0000-000000000040'),'canonical self names: inactive administrator rejection preserves Auth metadata');
+
+-- An unrelated administrator gets the same canonical behavior in their own company.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000044',false);
+select public.update_member_display_name(test.value('names_ws_b')::uuid,auth.uid(),'Administrador pessoal B');
+select test.ok((select display_name='Administrador pessoal B' from public.profiles where id=auth.uid()),'canonical self names: another company administrator self-edit also updates canonical profile');
+select test.ok((select display_name is null from public.memberships where workspace_id=test.value('names_ws_b')::uuid and user_id=auth.uid()),'canonical self names: another administrator self-edit clears only their own selected alias');
+select test.ok((select entry->>'display_name'='Administrador pessoal B' from jsonb_array_elements(public.list_members(test.value('names_ws_b')::uuid)) entry
+  where entry->>'user_id'=auth.uid()::text),'canonical self names: second-company roster resolves its administrator canonical name');
+select test.ok((select entry->>'display_name'='Nome exclusivo na empresa B' from jsonb_array_elements(public.list_members(test.value('names_ws_b')::uuid)) entry
+  where entry->>'user_id'='00000000-0000-0000-0000-000000000040'),'canonical self names: second administrator self-edit preserves another member company alias');
+reset role;
+select test.ok(not exists(select 1 from public.audit_logs where id>test.value('canonical_names_audit_start')::bigint
+  and details::text ~ 'Áquila Rosendo|Administrador pessoal B|Nome local do colega|Nome exclusivo na empresa B'),
+  'canonical self names: new canonical and alias audits never store personal names');
+
+-- The platform bootstrap is not a personal-name editor. Repeating it with an
+-- old browser-session name must never overwrite a valid canonical profile.
+select test.ok(has_function_privilege('authenticated','public.setup_owner(text)','EXECUTE'),'canonical owner bootstrap: authenticated setup RPC grant is preserved');
+select test.ok(has_function_privilege('service_role','public.setup_owner(text)','EXECUTE'),'canonical owner bootstrap: service setup RPC grant is preserved');
+select test.ok(not has_function_privilege('anon','public.setup_owner(text)','EXECUTE'),'canonical owner bootstrap: anonymous setup RPC grant remains absent');
+insert into test.context values('canonical_owner_guard_state',(select jsonb_build_object(
+  'platform_admins',(select jsonb_agg(to_jsonb(a) order by user_id) from public.platform_admins a),
+  'bootstrap_settings',(select jsonb_agg(to_jsonb(s) order by id) from public.bootstrap_settings s),
+  'memberships',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id) from public.memberships m),
+  'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w))::text));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.update_my_display_name('Nome pessoal canônico');
+select test.ok((select display_name='Nome pessoal canônico' from public.profiles where id=auth.uid()),'canonical owner bootstrap: owner explicitly sets canonical name through personal-name RPC');
+reset role;
+insert into test.context values
+  ('canonical_owner_auth_valid',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000001')),
+  ('canonical_owner_profile_valid',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000001'));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.ok(public.setup_owner('Nome Antigo de Sessão') and public.setup_owner('Nome Antigo de Sessão'),
+  'canonical owner bootstrap: repeated authorized owner setup remains idempotently successful');
+select test.ok(public.setup_owner(null) and public.setup_owner(),'canonical owner bootstrap: explicit null and omitted name remain supported');
+select test.ok((select display_name='Nome pessoal canônico' from public.profiles where id=auth.uid()),
+  'canonical owner bootstrap: old session seed and null never overwrite a valid personal name');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_owner_profile_valid')::jsonb from public.profiles p where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: repeated setup leaves valid profile byte-for-byte unchanged');
+select test.ok((select to_jsonb(u)=test.value('canonical_owner_auth_valid')::jsonb from auth.users u where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: repeated setup leaves canonical Auth metadata unchanged');
+
+-- Reproduce a legacy account whose profile is valid while Auth metadata is stale.
+-- The fixture explicitly restores the valid profile after the Auth sync trigger;
+-- setup must not treat the stale metadata or its parameter as a new edit.
+update auth.users set raw_user_meta_data=jsonb_set(raw_user_meta_data,'{display_name}','"Nome Antigo de Sessão"'::jsonb)
+  where id='00000000-0000-0000-0000-000000000001';
+update public.profiles set display_name='Nome pessoal canônico' where id='00000000-0000-0000-0000-000000000001';
+insert into test.context values
+  ('canonical_owner_auth_stale',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000001')),
+  ('canonical_owner_profile_stale',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000001'));
+select test.ok((select p.display_name='Nome pessoal canônico' and u.raw_user_meta_data->>'display_name'='Nome Antigo de Sessão'
+  from public.profiles p join auth.users u on u.id=p.id where p.id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: fixture contains valid profile with stale Auth fallback');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.ok(public.setup_owner('Nome Antigo de Sessão') and public.setup_owner(null),
+  'canonical owner bootstrap: stale metadata cannot turn bootstrap into a name edit');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_owner_profile_stale')::jsonb from public.profiles p where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: stale Auth metadata never overwrites existing valid profile');
+select test.ok((select to_jsonb(u)=test.value('canonical_owner_auth_stale')::jsonb from auth.users u where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: preserving valid profile does not invent a metadata update');
+
+-- Retain the original optional seed and its 1-character minimum for an unset
+-- profile. Auth remains the writer so all unrelated metadata survives the seed.
+update auth.users set raw_user_meta_data=raw_user_meta_data||jsonb_build_object(
+  'display_name','','full_name','Nome completo legado','terms_version','2026-10-06','privacy_version','2026-10-06',
+  'custom_preferences',jsonb_build_object('locale','pt-BR','compact',true))
+  where id='00000000-0000-0000-0000-000000000001';
+insert into test.context values
+  ('canonical_owner_metadata_blank',(select raw_user_meta_data::text from auth.users where id='00000000-0000-0000-0000-000000000001')),
+  ('canonical_owner_profile_blank',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000001')),
+  ('canonical_owner_auth_blank',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000001'));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.ok((select display_name='' from public.profiles where id=auth.uid()),'canonical owner bootstrap: Auth trigger prepares a genuinely unset profile');
+select test.ok(public.setup_owner(null),'canonical owner bootstrap: null seed leaves an unset name unset');
+select test.denied('select public.setup_owner('' '')','22023','canonical owner bootstrap: empty legacy seed is rejected');
+select test.denied('select public.setup_owner(repeat(''n'',121))','22023','canonical owner bootstrap: overlong legacy seed is rejected');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_owner_profile_blank')::jsonb from public.profiles p where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: null and rejected seed leave blank profile unchanged');
+select test.ok((select to_jsonb(u)=test.value('canonical_owner_auth_blank')::jsonb from auth.users u where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: null and rejected seed leave Auth metadata unchanged');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.ok(public.setup_owner(' A '),'canonical owner bootstrap: legacy single-character seed is accepted after trim');
+select test.ok((select display_name='A' from public.profiles where id=auth.uid()),'canonical owner bootstrap: blank profile seed synchronizes its trimmed canonical name');
+reset role;
+select test.ok((select raw_user_meta_data=test.value('canonical_owner_metadata_blank')::jsonb||jsonb_build_object('display_name','A')
+  from auth.users where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: seed preserves full name policy and custom Auth metadata');
+insert into test.context values
+  ('canonical_owner_auth_seeded',(select to_jsonb(u)::text from auth.users u where id='00000000-0000-0000-0000-000000000001')),
+  ('canonical_owner_profile_seeded',(select to_jsonb(p)::text from public.profiles p where id='00000000-0000-0000-0000-000000000001'));
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select test.ok(public.setup_owner('Nome Antigo de Sessão') and public.setup_owner(null) and public.setup_owner(),
+  'canonical owner bootstrap: later setup and null do not replace an already seeded name');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_owner_profile_seeded')::jsonb from public.profiles p where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: repeated setup preserves the seeded single-character profile exactly');
+select test.ok((select to_jsonb(u)=test.value('canonical_owner_auth_seeded')::jsonb from auth.users u where id='00000000-0000-0000-0000-000000000001'),
+  'canonical owner bootstrap: repeated setup preserves seeded Auth metadata exactly');
+
+-- Existing bootstrap authorization remains mandatory for every name-seed path.
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000040',false);
+select test.denied('select public.setup_owner(''Nome indevido de administrador'')','42501',
+  'canonical owner bootstrap: company administrator cannot seed names through platform setup');
+select test.denied('select public.setup_owner(null)','42501','canonical owner bootstrap: company administrator cannot bypass bootstrap with null seed');
+select test.denied('select public.bootstrap_owner()','42501','canonical owner bootstrap: existing platform owner cannot be replaced by company administrator');
+reset role;
+select test.ok((select to_jsonb(p)=test.value('canonical_names_profile_40_after')::jsonb from public.profiles p where id='00000000-0000-0000-0000-000000000040'),
+  'canonical owner bootstrap: unauthorized setup preserves company administrator profile');
+select test.ok((select to_jsonb(u)=test.value('canonical_names_auth_40_after')::jsonb from auth.users u where id='00000000-0000-0000-0000-000000000040'),
+  'canonical owner bootstrap: unauthorized setup preserves company administrator Auth identity');
+set role anon;
+select set_config('request.jwt.claim.sub','',false);
+select test.denied('select public.setup_owner(''Nome anônimo de bootstrap'')','42501','canonical owner bootstrap: anonymous setup remains denied');
+select test.denied('select public.bootstrap_owner()','42501','canonical owner bootstrap: anonymous bootstrap remains denied');
+reset role;
+grant usage on schema test to service_role;
+grant insert on test.results to service_role;
+set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select test.denied('select public.setup_owner(''Nome de serviço sem sessão'')','42501','canonical owner bootstrap: service role without auth identity cannot seed name');
+select test.denied('select public.bootstrap_owner()','42501','canonical owner bootstrap: service role without auth identity cannot bootstrap owner');
+reset role;
+revoke usage on schema test from service_role;
+revoke insert on test.results from service_role;
+select test.ok((select jsonb_build_object(
+  'platform_admins',(select jsonb_agg(to_jsonb(a) order by user_id) from public.platform_admins a),
+  'bootstrap_settings',(select jsonb_agg(to_jsonb(s) order by id) from public.bootstrap_settings s),
+  'memberships',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id) from public.memberships m),
+  'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w))=test.value('canonical_owner_guard_state')::jsonb),
+  'canonical owner bootstrap: all bootstrap cases preserve platform owner permissions aliases and company rows exactly');
+set role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',false);
+select public.update_my_display_name('Nome pessoal canônico');
+reset role;
 select 'Account name assertions passed: '||count(*) from test.results;

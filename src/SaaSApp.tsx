@@ -49,21 +49,47 @@ export default function SaaSApp() {
   const [invitePending, setInvitePending] = useState(Boolean(invitedToken && cloudConfigured))
   const userId = session?.user.id
   const currentUserId = useRef(userId)
+  const accessRequestId = useRef(0)
+  const savedNameRefresh = useRef<{ userId: string; promise: Promise<void> } | null>(null)
   currentUserId.current = userId
   const workspace = snapshot.workspaces.find(row => row.workspace.id === selectedWorkspace) || snapshot.workspaces[0] || null
   const allowed = workspace && subscriptionAllowsAccess(workspace.subscription)
   const data = useCloudData(allowed && Boolean(session?.user.email_confirmed_at) && !isDemo && !invitedToken && !passwordRequired ? workspace : null)
   const opportunity = useOpportunityData(allowed && Boolean(session?.user.email_confirmed_at) && !isDemo && !invitedToken && !passwordRequired ? workspace : null)
 
-  const refreshAccess = useCallback(async () => {
-    if (!session?.user) return
+  const refreshAccess = useCallback((propagateError = false): Promise<void> => {
+    if (!session?.user) return Promise.resolve()
     const requestedId = session.user.id
-    try {
-      const result = await loadAccess(session.user)
-      if (currentUserId.current !== requestedId) return
-      setSnapshot(result); setSnapshotUserId(requestedId); setError('')
-    } catch (cause) { if (currentUserId.current === requestedId) { setSnapshot(emptyAccess); setError(readableError(cause)) } }
-    finally { if (currentUserId.current === requestedId) setAccessLoading(false) }
+    // A post-save read must finish before confirming success. Background polling
+    // joins that read rather than superseding it with another pending snapshot.
+    const saving = savedNameRefresh.current
+    if (!propagateError && saving?.userId === requestedId) return saving.promise.catch(() => {})
+    const requestId = ++accessRequestId.current
+    const request = (async () => {
+      try {
+        const result = await loadAccess(session.user)
+        if (currentUserId.current !== requestedId) return
+        if (accessRequestId.current !== requestId) {
+          // Another save starts its own fresh read. The earlier save waits for
+          // that read rather than confirming an obsolete snapshot.
+          const latest = savedNameRefresh.current
+          if (propagateError && latest?.userId === requestedId) await latest.promise
+          return
+        }
+        setSnapshot(result); setSnapshotUserId(requestedId); setError('')
+      } catch (cause) {
+        if (currentUserId.current === requestedId && accessRequestId.current === requestId) { setSnapshot(emptyAccess); setError(readableError(cause)) }
+        if (propagateError) throw cause
+      }
+      finally { if (currentUserId.current === requestedId && accessRequestId.current === requestId) setAccessLoading(false) }
+    })()
+    if (propagateError) {
+      const pending = { userId: requestedId, promise: request }
+      savedNameRefresh.current = pending
+      const clear = () => { if (savedNameRefresh.current === pending) savedNameRefresh.current = null }
+      void request.then(clear, clear)
+    }
+    return request
   }, [session?.user.id])
 
   useEffect(() => {
@@ -90,7 +116,7 @@ export default function SaaSApp() {
     let canceled = false
     void (async () => {
       // Bootstrap is authorized exclusively by the protected database allowlist.
-      await requireSupabase().rpc('setup_owner', { p_name: session.user.user_metadata.display_name || null })
+      await requireSupabase().rpc('setup_owner', { p_name: null })
       if (!canceled) await refreshAccess()
     })()
     const timer = window.setInterval(() => { if (!document.hidden) void refreshAccess() }, 15000)
@@ -219,11 +245,11 @@ export default function SaaSApp() {
   if (accessLoading || (snapshotUserId !== session.user.id && !error)) return <div className="access-loading" role="status"><ShieldCheck size={28} /><p>Carregando suas empresas…</p></div>
 
   const accountBar = <div className="cloud-context-bar"><span><BrandLockup /><span className="context-brand-divider" aria-hidden="true" /><Building2 size={15} />{snapshot.isPlatformAdmin ? 'Administração da plataforma' : workspace?.workspace.name || 'Sua conta'}</span><div><ThemeSelector />{snapshot.workspaces.length > 1 && <select aria-label="Selecionar empresa" value={workspace?.workspace.id} onChange={event => { setSelectedWorkspace(event.target.value); const destination = new URL(applicationUrl()); destination.searchParams.set('workspace', event.target.value); window.history.replaceState({}, '', destination.toString()); setAdminOpen(false); setAccountOpen(false) }}>{snapshot.workspaces.map(row => <option value={row.workspace.id} key={row.workspace.id}>{row.workspace.name}</option>)}</select>}{workspace && (adminOpen || accountOpen) && <button onClick={() => { setAdminOpen(false); setAccountOpen(false) }}>Voltar ao CRM</button>}{(workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin) && <button onClick={() => { setAdminOpen(true); setAccountOpen(false) }}>Administrar</button>}<button onClick={() => { setAccountOpen(true); setAdminOpen(false) }}>Minha conta</button><button onClick={() => void signOut().catch(cause => setError(readableError(cause)))}><LogOut size={14} />Sair</button></div></div>
-  if (!accountOpen && ((adminOpen && (workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin)) || (snapshot.isPlatformAdmin && !workspace))) return <AuthenticatedTheme>{accountBar}<div className="administration-shell"><Administration access={workspace} isPlatformAdmin={snapshot.isPlatformAdmin} service={administrationService} onAccessChange={() => { void refreshAccess(); void data.refresh() }} /></div></AuthenticatedTheme>
+  if (!accountOpen && ((adminOpen && (workspace?.membership.role === 'admin' || snapshot.isPlatformAdmin)) || (snapshot.isPlatformAdmin && !workspace))) return <AuthenticatedTheme>{accountBar}<div className="administration-shell"><Administration access={workspace} accountDisplayName={snapshot.displayName} isPlatformAdmin={snapshot.isPlatformAdmin} service={administrationService} onAccessChange={async () => { await refreshAccess(true); await data.refresh() }} /></div></AuthenticatedTheme>
 
   if (!workspace && !snapshot.isPlatformAdmin && !error && !accountOpen) return <AuthScreen mode="onboarding" invitedEmail={session.user.email} initialDisplayName={session.user.user_metadata.display_name || snapshot.displayName} initialCompanyName={typeof session.user.user_metadata.self_signup_company === 'string' ? session.user.user_metadata.self_signup_company : ''} onCreateWorkspace={createWorkspace} onBack={() => void signOut().catch(cause => setError(readableError(cause)))} legalContactEmail={legalContact} />
 
-  if (!workspace || !allowed || error || accountOpen) return <AuthenticatedTheme>{accountBar}<main className="account-state"><ShieldCheck size={34} /><h1>{error ? 'Não conseguimos verificar seu acesso' : !workspace && !snapshot.isPlatformAdmin ? 'Sua conta aguarda um convite' : workspace && !allowed ? 'O acesso desta empresa está pausado' : 'Sua conta'}</h1><p>{error || (!workspace ? snapshot.isPlatformAdmin ? `Administrador da plataforma · ${session.user.email}` : 'Peça ao administrador o link de convite para a sua empresa. Ter uma conta não libera acesso aos dados de outros clientes.' : !allowed ? 'Consulte o administrador para verificar o plano e retomar o acesso ao CRM. Seus dados não foram apagados.' : `${workspace.membership.displayName} · ${workspace.membership.email} · Perfil: ${workspace.membership.role}`)}</p><div className="account-state-actions"><button className="button button-secondary" onClick={() => { setAccessLoading(true); void refreshAccess() }}><RefreshCw size={15} />Atualizar acesso</button><button className="button button-secondary" onClick={() => { setPasswordRequired(true); setAdminOpen(false); setAccountOpen(false) }}>Alterar minha senha</button>{workspace?.membership.role === 'admin' && <button className="button button-secondary" onClick={async () => { try { downloadJson(`high-closer-empresa-${workspace.workspace.id}.json`, await administrationService.exportWorkspace(workspace.workspace.id)) } catch (cause) { setError(readableError(cause)) } }}>Exportar dados da empresa</button>}</div>{accountOpen && <AccountProfile userId={session.user.id} displayName={snapshot.displayName} email={session.user.email || ''} workspaceId={workspace?.workspace.id} onSaved={async () => { await refreshAccess(); await data.refresh() }} />}</main></AuthenticatedTheme>
+  if (!workspace || !allowed || error || accountOpen) return <AuthenticatedTheme>{accountBar}<main className="account-state"><ShieldCheck size={34} /><h1>{error ? 'Não conseguimos verificar seu acesso' : !workspace && !snapshot.isPlatformAdmin ? 'Sua conta aguarda um convite' : workspace && !allowed ? 'O acesso desta empresa está pausado' : 'Sua conta'}</h1><p>{error || (!workspace ? snapshot.isPlatformAdmin ? `Administrador da plataforma · ${session.user.email}` : 'Peça ao administrador o link de convite para a sua empresa. Ter uma conta não libera acesso aos dados de outros clientes.' : !allowed ? 'Consulte o administrador para verificar o plano e retomar o acesso ao CRM. Seus dados não foram apagados.' : `${snapshot.displayName} · ${workspace.membership.email} · Perfil: ${workspace.membership.role}`)}</p><div className="account-state-actions"><button className="button button-secondary" onClick={() => { setAccessLoading(true); void refreshAccess() }}><RefreshCw size={15} />Atualizar acesso</button><button className="button button-secondary" onClick={() => { setPasswordRequired(true); setAdminOpen(false); setAccountOpen(false) }}>Alterar minha senha</button>{workspace?.membership.role === 'admin' && <button className="button button-secondary" onClick={async () => { try { downloadJson(`high-closer-empresa-${workspace.workspace.id}.json`, await administrationService.exportWorkspace(workspace.workspace.id)) } catch (cause) { setError(readableError(cause)) } }}>Exportar dados da empresa</button>}</div>{accountOpen && <AccountProfile userId={session.user.id} displayName={snapshot.displayName} email={session.user.email || ''} workspaceId={workspace?.workspace.id} onSaved={async () => { await refreshAccess(true); await data.refresh() }} />}</main></AuthenticatedTheme>
 
   if (data.loading) return <AuthenticatedTheme>{accountBar}<div className="access-loading" role="status"><ShieldCheck size={28} /><p>Carregando seu CRM…</p></div></AuthenticatedTheme>
   const canEdit = workspace.membership.role !== 'viewer'

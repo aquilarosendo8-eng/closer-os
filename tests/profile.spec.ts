@@ -7,9 +7,10 @@ import { createProfileState, effectiveProfileName, mountProfile, openOwnProfile,
 const ownWrites = (state: ProfileState) => state.requests.filter(request => request.path.endsWith('/update_my_display_name'))
 const memberWrites = (state: ProfileState) => state.requests.filter(request => request.path.endsWith('/update_member_display_name'))
 const companyWrites = (state: ProfileState) => state.requests.filter(request => request.path.endsWith('/rename_workspace'))
-function clean(state: ProfileState) {
+function clean(state: ProfileState, options: { reauthenticated?: boolean } = {}) {
   expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([])
-  expect(state.requests.filter(request => request.path.startsWith('/auth/') && request.method !== 'GET' && request.method !== 'OPTIONS')).toEqual([])
+  expect(state.requests.filter(request => request.path.startsWith('/auth/') && request.method !== 'GET' && request.method !== 'OPTIONS'
+    && !(options.reauthenticated && request.method === 'POST' && ['/auth/v1/token', '/auth/v1/logout'].includes(request.path)))).toEqual([])
   expect(state.requests.filter(request => /memberships|profiles|workspaces/.test(request.path) && ['PATCH', 'PUT', 'DELETE'].includes(request.method))).toEqual([])
   expect(state.requests.filter(request => /update_member$|update_subscription|create_invitation|invite_member|revoke_invitation|accept_invitation|\/api\/invitation|recover|signup/.test(request.path))).toEqual([])
 }
@@ -25,6 +26,298 @@ async function screenshot(page: Page, info: TestInfo, suffix: string) {
 async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth) + 1)
 }
+
+async function assertCanonicalAccount(page: Page, name: string, role: ProfileRole = 'admin') {
+  await page.locator('.cloud-context-bar').getByRole('button', { name: 'Minha conta', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sua conta', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue(name)
+  await expect(page.locator('.account-state > p')).toHaveText(`${name} · ${profileEmail(role)} · Perfil: ${role}`)
+}
+
+async function assertAdminNameAcrossScreens(page: Page, name: string) {
+  await expect(page.locator('.sidebar-profile strong')).toHaveText(name)
+  await assertCanonicalAccount(page, name)
+  await openProfileAdministration(page)
+  await expect(page.getByRole('button', { name: `Editar nome de ${name}`, exact: true })).toBeVisible()
+  await returnToCRM(page)
+  await expect(page.locator('.sidebar-profile strong')).toHaveText(name)
+}
+
+async function signOutAndSignBackIn(page: Page, role: ProfileRole = 'admin') {
+  await page.locator('.cloud-context-bar').getByRole('button', { name: 'Sair', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Bom ter você de volta.', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('sb-test-auth-token'))).toBeNull()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Bom ter você de volta.', exact: true })).toBeVisible()
+  await page.getByLabel('E-mail', { exact: true }).fill(profileEmail(role))
+  await page.getByLabel('Senha', { exact: true }).fill('senha de fixture sem conta real')
+  await page.getByRole('button', { name: 'Entrar no meu workspace', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Visão geral.', exact: true })).toBeVisible()
+}
+
+test('canonical-name regression: an old profile and a newer own alias converge after My account save, reload and new login', async ({ page }) => {
+  const state = createProfileState(), ownId = profileUserIds.admin, otherId = profileUserIds.closer
+  state.names[ownId] = 'Nome Antigo'
+  state.overrides[profileWorkspaceA][ownId] = 'Áquila Rosendo'
+  state.overrides[profileWorkspaceB][ownId] = 'Alias pessoal na outra empresa'
+  state.overrides[profileWorkspaceA][otherId] = 'Alias do colega na Aurora'
+  state.overrides[profileWorkspaceB][otherId] = 'Alias do colega em outra empresa'
+  const untouchedNames = { ...state.names }, untouchedAliases = { ...state.overrides[profileWorkspaceB] }
+  await mountProfile(page, 'admin', { state, twoWorkspaces: true, staleAuthName: 'dfaaw' })
+
+  // The personal form and its heading must both read the persisted canonical profile.
+  // Merely replacing the form value with the newer membership alias would fail here.
+  await assertCanonicalAccount(page, 'Nome Antigo')
+  await page.getByRole('button', { name: 'Editar nome', exact: true }).click()
+  await page.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo')
+  await page.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Nome atualizado com sucesso.')
+  expect(ownWrites(state)).toHaveLength(1)
+  expect(ownWrites(state)[0].body).toEqual({ p_display_name: 'Áquila Rosendo', p_workspace_id: profileWorkspaceA })
+  expect(memberWrites(state)).toHaveLength(0)
+  expect(state.names[ownId]).toBe('Áquila Rosendo')
+  expect(effectiveProfileName(state, profileWorkspaceA, ownId)).toBe('Áquila Rosendo')
+  expect(state.names[otherId]).toBe(untouchedNames[otherId])
+  expect(state.overrides[profileWorkspaceA][otherId]).toBe('Alias do colega na Aurora')
+  expect(state.overrides[profileWorkspaceB]).toEqual(untouchedAliases)
+
+  await returnToCRM(page)
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Visão geral.', exact: true })).toBeVisible()
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await signOutAndSignBackIn(page)
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  // A fresh session still contains stale Auth metadata; the saved profile wins.
+  const authName = await page.evaluate(() => JSON.parse(localStorage.getItem('sb-test-auth-token')!).user.user_metadata.display_name)
+  expect(authName).toBe('dfaaw')
+  clean(state, { reauthenticated: true })
+})
+
+test('canonical-name regression: Admin editing themselves uses the personal RPC, not a workspace-only alias', async ({ page }) => {
+  const state = createProfileState(), ownId = profileUserIds.admin
+  state.names[ownId] = 'Nome Antigo'
+  state.overrides[profileWorkspaceA][ownId] = 'Áquila Rosendo'
+  state.overrides[profileWorkspaceB][ownId] = 'Áquila na outra empresa'
+  const otherNames = { ...state.names }, otherWorkspaceAliases = { ...state.overrides[profileWorkspaceB] }
+  await mountProfile(page, 'admin', { state, twoWorkspaces: true, staleAuthName: 'dfaaw' })
+  await openProfileAdministration(page)
+  await page.getByRole('button', { name: 'Editar nome de Áquila Rosendo', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Editar meu nome', exact: true })
+  await expect(dialog.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Nome Antigo')
+  await dialog.getByLabel('Nome de exibição', { exact: true }).fill('  Áquila Rosendo  ')
+  await dialog.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: 'Editar nome de Áquila Rosendo', exact: true })).toBeVisible()
+  expect(ownWrites(state)).toHaveLength(1)
+  expect(ownWrites(state)[0].body).toEqual({ p_display_name: 'Áquila Rosendo', p_workspace_id: profileWorkspaceA })
+  expect(memberWrites(state)).toHaveLength(0)
+  expect(state.names).toEqual({ ...otherNames, [ownId]: 'Áquila Rosendo' })
+  expect(state.overrides[profileWorkspaceB]).toEqual(otherWorkspaceAliases)
+  expect(effectiveProfileName(state, profileWorkspaceA, ownId)).toBe('Áquila Rosendo')
+
+  await returnToCRM(page)
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Visão geral.', exact: true })).toBeVisible()
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await signOutAndSignBackIn(page)
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  clean(state, { reauthenticated: true })
+})
+
+test('canonical-name regression: editing another member preserves their global identity and aliases in other companies', async ({ page, browser }) => {
+  const state = createProfileState(), otherId = profileUserIds.closer
+  state.names[otherId] = 'Nome pessoal do colega'
+  state.overrides[profileWorkspaceA][otherId] = 'Alias antigo na Aurora'
+  state.overrides[profileWorkspaceB][otherId] = 'Alias preservado na outra empresa'
+  const globalNames = { ...state.names }, otherCompanyAliases = { ...state.overrides[profileWorkspaceB] }
+  await mountProfile(page, 'admin', { state, twoWorkspaces: true })
+  await openProfileAdministration(page)
+  await page.getByRole('button', { name: 'Editar nome de Alias antigo na Aurora', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Editar nome do membro', exact: true })
+  await dialog.getByLabel('Nome na empresa', { exact: true }).fill('Nome comercial na Aurora')
+  await dialog.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  expect(memberWrites(state)).toHaveLength(1)
+  expect(memberWrites(state)[0].body).toEqual({ p_workspace_id: profileWorkspaceA, p_user_id: otherId, p_display_name: 'Nome comercial na Aurora' })
+  expect(ownWrites(state)).toHaveLength(0)
+  expect(state.names).toEqual(globalNames)
+  expect(state.overrides[profileWorkspaceB]).toEqual(otherCompanyAliases)
+
+  // A separate browser context represents the other member's own account.
+  // It shares only the modeled server state, never the administrator's session.
+  const context = await browser.newContext({ baseURL: String(test.info().project.use.baseURL), locale: 'pt-BR', timezoneId: 'America/Bahia' })
+  const colleague = await context.newPage()
+  try {
+    await mountProfile(colleague, 'closer', { state, twoWorkspaces: true, staleAuthName: 'Metadado antigo do colega' })
+    await expect(colleague.locator('.sidebar-profile strong')).toHaveText('Nome comercial na Aurora')
+    await assertCanonicalAccount(colleague, 'Nome pessoal do colega', 'closer')
+    await returnToCRM(colleague)
+    await colleague.getByLabel('Selecionar empresa').selectOption(profileWorkspaceB)
+    await expect(colleague.locator('.sidebar-profile strong')).toHaveText('Alias preservado na outra empresa')
+    await assertCanonicalAccount(colleague, 'Nome pessoal do colega', 'closer')
+    await expect(colleague.locator('.cloud-context-bar').getByRole('button', { name: 'Administrar', exact: true })).toHaveCount(0)
+    await expect(colleague.getByRole('button', { name: /^Editar nome de / })).toHaveCount(0)
+    await returnToCRM(colleague)
+    await signOutAndSignBackIn(colleague, 'closer')
+    await assertCanonicalAccount(colleague, 'Nome pessoal do colega', 'closer')
+    expect(state.names).toEqual(globalNames)
+    expect(state.overrides[profileWorkspaceB]).toEqual(otherCompanyAliases)
+    expect(memberWrites(state)).toHaveLength(1)
+    expect(ownWrites(state)).toHaveLength(0)
+    clean(state, { reauthenticated: true })
+  } finally { await context.close() }
+})
+
+test('canonical-name regression: a failed post-save read never declares success and retry reads the persisted name', async ({ page }) => {
+  const state = await mountProfile(page, 'admin')
+  await openOwnProfile(page)
+  await page.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo')
+  // PostgREST can retry idempotent GETs; keep the outage active until the user retries.
+  state.failProfileReads = 100
+  await page.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Não conseguimos verificar seu acesso', exact: true })).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('.account-state > p')).toContainText('Não foi possível atualizar a leitura do perfil.')
+  await expect(page.getByText('Nome atualizado com sucesso.', { exact: true })).toHaveCount(0)
+  expect(state.names[profileUserIds.admin]).toBe('Áquila Rosendo')
+  expect(ownWrites(state)).toHaveLength(1)
+  state.failProfileReads = 0
+  await page.getByRole('button', { name: 'Atualizar acesso', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sua conta', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Áquila Rosendo')
+  await expect(page.locator('.account-state > p')).toHaveText(`Áquila Rosendo · ${profileEmail('admin')} · Perfil: admin`)
+  expect(ownWrites(state)).toHaveLength(1)
+  clean(state)
+})
+
+test('canonical-name regression: an older access response arriving after save cannot restore the previous name', async ({ page }) => {
+  const state = createProfileState()
+  state.names[profileUserIds.admin] = 'Nome Antigo'
+  await mountProfile(page, 'admin', { state, staleAuthName: 'Metadado Antigo' })
+  await openOwnProfile(page)
+  let releaseOld!: () => void
+  state.delayNextProfileRead = new Promise<void>(resolve => { releaseOld = resolve })
+  const initialProfileReads = state.requests.filter(request => request.path === '/rest/v1/profiles').length
+  try {
+    // Trigger the same refresh used when returning to the browser tab.
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+    await expect.poll(() => state.requests.filter(request => request.path === '/rest/v1/profiles').length).toBe(initialProfileReads + 1)
+    await page.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo')
+    await page.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+    await expect(page.getByRole('status')).toContainText('Nome atualizado com sucesso.')
+    await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Áquila Rosendo')
+    const oldSnapshotComplete = page.waitForResponse(response => {
+      const url = new URL(response.url())
+      return url.pathname === '/rest/v1/workspace_settings' && Boolean(url.searchParams.get('workspace_id')?.startsWith('in.'))
+    })
+    releaseOld()
+    await oldSnapshotComplete
+    // Allow the completed older response and React's ensuing render to settle.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))))
+    await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Áquila Rosendo')
+    await expect(page.locator('.account-state > p')).toHaveText(`Áquila Rosendo · ${profileEmail('admin')} · Perfil: admin`)
+    await returnToCRM(page)
+    await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+    expect(ownWrites(state)).toHaveLength(1)
+    clean(state)
+  } finally { releaseOld() }
+})
+
+test('canonical-name regression: background refresh joins an in-flight post-save read and cannot announce success early', async ({ page }) => {
+  const state = createProfileState()
+  state.names[profileUserIds.admin] = 'Nome Antigo'
+  await mountProfile(page, 'admin', { state, staleAuthName: 'Metadado Antigo' })
+  await openOwnProfile(page)
+  let releaseSavedProfile!: () => void
+  state.delayNextProfileRead = new Promise<void>(resolve => { releaseSavedProfile = resolve })
+  const profileReadsBefore = state.requests.filter(request => request.path === '/rest/v1/profiles').length
+  try {
+    await page.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo')
+    await page.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+    await expect.poll(() => state.requests.filter(request => request.path === '/rest/v1/profiles').length).toBe(profileReadsBefore + 1)
+    expect(state.names[profileUserIds.admin]).toBe('Áquila Rosendo')
+
+    // The persistent write has succeeded, but its verifying read is still pending.
+    // A tab-visibility refresh arriving now must join that read rather than replace it.
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null))))
+    })
+    expect(state.requests.filter(request => request.path === '/rest/v1/profiles')).toHaveLength(profileReadsBefore + 1)
+    await expect(page.getByRole('button', { name: 'Salvando…', exact: true })).toBeDisabled()
+    await expect(page.getByText('Nome atualizado com sucesso.', { exact: true })).toHaveCount(0)
+
+    releaseSavedProfile()
+    await expect(page.getByRole('status')).toContainText('Nome atualizado com sucesso.')
+    await expect(page.getByLabel('Nome de exibição', { exact: true })).toHaveValue('Áquila Rosendo')
+    await expect(page.locator('.account-state > p')).toHaveText(`Áquila Rosendo · ${profileEmail('admin')} · Perfil: admin`)
+    expect(state.requests.filter(request => request.path === '/rest/v1/profiles')).toHaveLength(profileReadsBefore + 1)
+    expect(ownWrites(state)).toHaveLength(1)
+    clean(state)
+  } finally { releaseSavedProfile() }
+})
+
+test('canonical-name regression: startup never submits stale session metadata to overwrite a persisted profile', async ({ page }) => {
+  const state = createProfileState()
+  state.names[profileUserIds.admin] = 'Áquila Rosendo'
+  await mountProfile(page, 'admin', { state, staleAuthName: 'dfaaw' })
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Visão geral.', exact: true })).toBeVisible()
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  await signOutAndSignBackIn(page)
+  await assertAdminNameAcrossScreens(page, 'Áquila Rosendo')
+  const startupRequests = state.requests.filter(request => request.path === '/rest/v1/rpc/setup_owner')
+  expect(startupRequests.length).toBeGreaterThanOrEqual(3)
+  for (const request of startupRequests) expect(request.body).toEqual({ p_name: null })
+  expect(state.names[profileUserIds.admin]).toBe('Áquila Rosendo')
+  expect(ownWrites(state)).toHaveLength(0)
+  expect(memberWrites(state)).toHaveLength(0)
+  clean(state, { reauthenticated: true })
+})
+
+test('canonical-name regression: a second self-edit after navigation verifies its own write and an older read cannot undo it', async ({ page }) => {
+  const state = createProfileState()
+  state.names[profileUserIds.admin] = 'Nome Antigo'
+  await mountProfile(page, 'admin', { state })
+  await openOwnProfile(page)
+  let releaseFirstRead!: () => void
+  state.delayNextProfileRead = new Promise<void>(resolve => { releaseFirstRead = resolve })
+  const profileReadsBefore = state.requests.filter(request => request.path === '/rest/v1/profiles').length
+  try {
+    await page.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo')
+    await page.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+    await expect.poll(() => state.requests.filter(request => request.path === '/rest/v1/profiles').length).toBe(profileReadsBefore + 1)
+    await expect(page.getByRole('button', { name: 'Salvando…', exact: true })).toBeDisabled()
+
+    // Navigate while the first write's verifying read is pending, then perform
+    // another legitimate self-edit from the company's team page.
+    await openProfileAdministration(page)
+    await page.getByRole('button', { name: 'Editar nome de Áquila Rosendo', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Editar meu nome', exact: true })
+    await dialog.getByLabel('Nome de exibição', { exact: true }).fill('Áquila Rosendo Atualizado')
+    await dialog.getByRole('button', { name: 'Salvar nome', exact: true }).click()
+    await expect(dialog).not.toBeVisible()
+    await expect(page.getByRole('status')).toContainText('Seu nome pessoal foi atualizado.')
+    expect(state.names[profileUserIds.admin]).toBe('Áquila Rosendo Atualizado')
+    expect(state.requests.filter(request => request.path === '/rest/v1/profiles')).toHaveLength(profileReadsBefore + 2)
+    expect(ownWrites(state).map(request => request.body?.p_display_name)).toEqual(['Áquila Rosendo', 'Áquila Rosendo Atualizado'])
+    expect(memberWrites(state)).toHaveLength(0)
+
+    const firstSnapshotComplete = page.waitForResponse(response => {
+      const url = new URL(response.url())
+      return url.pathname === '/rest/v1/workspace_settings' && Boolean(url.searchParams.get('workspace_id')?.startsWith('in.'))
+    })
+    releaseFirstRead()
+    await firstSnapshotComplete
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))))
+    await returnToCRM(page)
+    await assertAdminNameAcrossScreens(page, 'Áquila Rosendo Atualizado')
+    expect(state.names[profileUserIds.admin]).toBe('Áquila Rosendo Atualizado')
+    clean(state)
+  } finally { releaseFirstRead() }
+})
 
 for (const role of ['admin', 'manager', 'closer', 'viewer'] as const) {
   test(`${role} can rename only their own profile; sidebar and avatars refresh and survive reload`, async ({ page }) => {

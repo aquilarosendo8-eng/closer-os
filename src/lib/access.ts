@@ -36,6 +36,8 @@ export async function loadAccess(user: User): Promise<AccessSnapshot> {
   ])
   assert(membershipResult.error); assert(adminResult.error); assert(profileResult.error)
   const isPlatformAdmin = Boolean(adminResult.data?.length)
+  // The persisted profile is the account's canonical read source. Session metadata
+  // is only a fallback and must never replace a valid profile after a name update.
   const displayName = profileResult.data?.display_name || user.user_metadata.display_name || user.email?.split('@')[0] || 'Closer'
   const memberships = membershipResult.data || []
   if (!memberships.length) return { workspaces: [], isPlatformAdmin, displayName }
