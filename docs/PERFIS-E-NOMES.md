@@ -22,7 +22,13 @@ A migration `202610090007_canonical_self_member_names.sql` protege também chama
 
 Em 09/10/2026, o build passou, assim como 195 testes unitários, 44 fluxos SaaS/Admin e a suíte final de 28 fluxos de perfil no navegador. Os testes de navegador usam respostas HTTP simuladas e persistentes: cobrem o bug original, recarga, logout e novo login com metadados antigos, alias de terceiros, falhas de leitura e respostas concorrentes. O PostgreSQL descartável aprovou 730 verificações, incluindo 91 regressões novas de nomes e as cinco verificações de concorrência existentes. As migrations 001–006 permanecem intactas; o SHA256 da 007 é `90729ed1255c666d5c956363c7da0c1492e449932f819b88089bc7d0136dd3f6`.
 
-A publicação da 007 e os testes reais no Supabase ainda aguardam a validação do deploy. As evidências datadas abaixo pertencem à implementação inicial da migration 005 e não comprovam esta nova publicação.
+Publicado em 09/10/2026 no deployment `dpl_DX4nkpVJsK5qgCT52xGCv17MNG1N`, estado READY, fonte `de3812ba16c5592ec9219be2e42fed0fd91ab8bf`, no alias https://closer-os-rho-three.vercel.app/. O builder aplicou a 007 em transação, conferiu as sete versões/checksums e manteve RLS nas 16 tabelas. HTML e assets retornaram HTTP 200; nenhum segredo administrativo foi encontrado nos assets públicos, e as APIs de convite mantiveram o bloqueio GET 405.
+
+O smoke real no Supabase e no navegador publicado aprovou 41 verificações, incluindo 27 de backend: autoedição pelo Admin e por Minha conta, nome consistente em cabeçalho/campo/equipe/CRM, persistência após recarga e novos logins reais, bloqueio de edição de terceiros por gestor/closer/viewer, nomes locais de outros membros, aliases de outras empresas e proteção de `setup_owner` contra nome antigo de sessão. Claro/escuro e desktop/mobile também foram conferidos. Não foram enviados e-mails nem registrados erros de execução no navegador. As quatro contas, duas empresas e a permissão temporária de teste foram removidas, com confirmação da limpeza.
+
+O cadastro do proprietário foi conferido separadamente e já apresenta “Áquila Rosendo” no perfil, nos metadados Auth e no alias da empresa selecionada. Não houve promoção automática de aliases dos demais usuários ou empresas. A correção não exige novas variáveis, alteração de SMTP, redirecionamentos ou SQL manual nesta implantação; bootstrap, permissões, RLS e funcionalidades comerciais permanecem com suas regras anteriores.
+
+Arquivos desta correção: `src/SaaSApp.tsx`, `src/components/AccountProfile.tsx`, `src/components/Administration.tsx`, `src/lib/access.ts` (comentário sobre a fonte de leitura), `supabase/migrations/202610090007_canonical_self_member_names.sql`, `supabase/tests/account-names.sql`, `tests/profile.spec.ts`, `tests/fixtures/profile.ts` e este documento. As evidências datadas nas seções seguintes pertencem à implementação inicial da migration 005.
 
 ## Permissões e isolamento
 
