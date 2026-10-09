@@ -1,0 +1,354 @@
+/* Presentation only: authenticated account/admin and the existing access shell. */
+.crm-visual .cloud-context-bar {
+  min-height: 48px;
+  padding: 6px var(--space-6, 24px);
+  gap: var(--space-3, 12px);
+  font-size: var(--font-size-secondary, 12px);
+}
+.crm-visual .cloud-context-bar > span { min-width: 0; gap: var(--space-2, 8px); overflow-wrap: anywhere; }
+.crm-visual .cloud-context-bar > div { min-width: 0; gap: var(--space-1, 4px); }
+.crm-visual .cloud-context-bar button {
+  min-height: var(--control-height-sm, 30px);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.4;
+  transition: background var(--transition-fast, 140ms), color var(--transition-fast, 140ms);
+}
+.crm-visual .cloud-context-bar select { min-width: 0; max-width: 200px; min-height: var(--control-height, 34px); padding: 5px 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-secondary, 12px); }
+.crm-visual .cloud-context-bar .crm-theme-selector { min-height: var(--control-height, 34px); padding-left: 8px; gap: 6px; border-radius: var(--radius-sm, 6px); }
+.crm-visual .cloud-context-bar .crm-theme-selector select { min-height: 32px; padding: 4px 8px 4px 0; }
+.crm-visual .cloud-context-bar .brand-lockup { gap: 2px; }
+.crm-visual .cloud-context-bar .context-brand-divider { height: 24px; }
+
+.crm-visual .administration-shell { max-width: 1520px; padding: var(--space-6, 24px); }
+.crm-visual .ad-page, .crm-visual .ad-company-sections { gap: var(--space-4, 16px); font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .ad-page .panel, .crm-visual .ad-metrics .stat-card, .crm-visual .ad-context, .crm-visual .ad-link-card {
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: none;
+}
+.crm-visual .ad-context { padding: var(--space-4, 16px); gap: var(--space-3, 12px); }
+.crm-visual .ad-context-title { gap: var(--space-3, 12px); }
+.crm-visual .ad-context-title strong { font-size: var(--font-size-page, 22px); font-weight: 650; letter-spacing: -.035em; line-height: 1.3; }
+.crm-visual .ad-context-title small { margin-top: 4px; font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-context-icon, .crm-visual .ad-overview-icon { width: 34px; height: 34px; border-radius: var(--radius-sm, 6px); }
+.crm-visual .ad-context-icon > svg, .crm-visual .ad-overview-icon > svg { width: 17px; height: 17px; }
+.crm-visual .ad-tabs { gap: var(--space-1, 4px); }
+.crm-visual .ad-tabs button { min-height: 38px; padding: 8px 12px; gap: 6px; font-size: var(--font-size-body, 13px); line-height: 1.4; transition: color var(--transition-fast, 140ms), background var(--transition-fast, 140ms); }
+.crm-visual .ad-tabs button:hover { background: var(--color-surface-raised); }
+.crm-visual .ad-tabs svg { width: 15px; height: 15px; }
+.crm-visual .ad-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3, 12px); }
+.crm-visual .ad-metrics .stat-card { padding: var(--space-4, 16px); }
+.crm-visual .ad-metrics .stat-label { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-metrics > .stat-card > strong { margin: 8px 0 4px; font-size: 26px; line-height: 1.2; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.crm-visual .ad-metrics > .stat-card > small { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-page .panel-header { padding: var(--space-4, 16px); gap: var(--space-3, 12px); }
+.crm-visual .ad-page .panel-header h2 { font-size: var(--font-size-section, 16px); font-weight: 650; line-height: 1.4; letter-spacing: -.02em; }
+.crm-visual .ad-page .panel-header p { margin-top: 4px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-toolbar { padding: 0 var(--space-4, 16px) var(--space-3, 12px); gap: var(--space-2, 8px); }
+.crm-visual .ad-search { max-width: 360px; min-height: var(--control-height, 34px); padding: 6px 10px; gap: 7px; border-radius: var(--radius-sm, 6px); }
+.crm-visual .ad-search input { font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .ad-refresh { min-height: var(--control-height-sm, 30px); padding: 5px 7px; gap: 5px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-loading { min-height: 120px; gap: 8px; font-size: var(--font-size-body, 13px); }
+.crm-visual .ad-table-scroll { overscroll-behavior-x: contain; }
+.crm-visual .ad-client-table { min-width: 760px; }
+.crm-visual .ad-member-table { min-width: 760px; }
+.crm-visual .ad-invitation-table { min-width: 940px; }
+.crm-visual .ad-page .data-table th { padding: 8px 12px; font-size: var(--font-size-label, 11px); font-weight: 600; line-height: 1.5; letter-spacing: .02em; }
+.crm-visual .ad-page .data-table td { padding: 10px 12px; font-size: var(--font-size-body, 13px); line-height: 1.5; font-variant-numeric: tabular-nums; }
+.crm-visual .ad-page .data-table tbody tr { transition: background var(--transition-fast, 140ms); }
+.crm-visual .ad-identity { gap: 9px; }
+.crm-visual .ad-avatar { width: 30px; height: 30px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-label, 11px); }
+.crm-visual .ad-avatar svg { width: 15px; height: 15px; }
+.crm-visual .ad-identity > div > strong, .crm-visual .ad-name-heading > strong, .crm-visual .ad-invitation-person strong { max-width: 240px; font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .ad-identity small, .crm-visual .ad-invitation-person small { max-width: 240px; margin-top: 2px; font-size: var(--font-size-secondary, 12px); line-height: 1.5; overflow-wrap: anywhere; }
+.crm-visual .ad-name-heading { gap: 3px 8px; }
+.crm-visual .ad-name-action { min-height: var(--control-height-sm, 30px); padding: 4px 6px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-you { padding: 2px 5px; font-size: var(--font-size-label, 11px); }
+.crm-visual .ad-status { gap: 5px; padding: 3px 7px; font-size: var(--font-size-label, 11px); line-height: 1.5; font-weight: 550; }
+.crm-visual .ad-table-action { min-height: var(--control-height-sm, 30px); padding: 4px 7px; gap: 5px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-invitation-actions { gap: 2px; }
+.crm-visual .ad-invitation-accepted { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-team-overview { padding: 0; gap: var(--space-3, 12px); }
+.crm-visual .ad-team-overview > div { gap: var(--space-2, 8px); }
+.crm-visual .ad-team-overview strong { font-size: var(--font-size-section, 16px); line-height: 1.4; }
+.crm-visual .ad-team-overview small, .crm-visual .ad-seat-note { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-seat-note { margin-top: -4px; }
+.crm-visual .ad-member-table .ad-role-editor { gap: 6px; }
+.crm-visual .ad-member-table .ad-role-editor select { min-width: 140px; min-height: var(--control-height-sm, 30px); padding: 5px 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-save-role { min-height: var(--control-height-sm, 30px); padding: 4px 7px; gap: 4px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-protected-label { margin-top: 3px; font-size: var(--font-size-label, 11px); line-height: 1.5; }
+.crm-visual .ad-role-guide { padding: var(--space-3, 12px) var(--space-4, 16px); gap: var(--space-4, 16px); }
+.crm-visual .ad-role-guide > span { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-role-guide b { margin-bottom: 3px; font-size: var(--font-size-secondary, 12px); font-weight: 600; }
+.crm-visual .ad-notice, .crm-visual .ad-error { padding: 10px 12px; gap: 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); line-height: 1.5; overflow-wrap: anywhere; }
+.crm-visual .ad-notice > button, .crm-visual .ad-error > button { min-height: var(--control-height-sm, 30px); padding: 4px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-error > span { min-width: 0; }
+.crm-visual .ad-link-card { padding: var(--space-4, 16px); }
+.crm-visual .ad-link-card > div:first-child { gap: var(--space-2, 8px); }
+.crm-visual .ad-link-card strong { font-size: var(--font-size-body, 13px); font-weight: 650; line-height: 1.5; }
+.crm-visual .ad-link-card p { margin-top: 4px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-link-actions { margin-top: 12px; gap: 8px; }
+.crm-visual .ad-link-actions input { min-height: var(--control-height, 34px); padding: 6px 10px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-link-card > small { margin-top: 8px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-icon-button { width: 30px; height: 30px; border-radius: var(--radius-sm, 6px); }
+.crm-visual .ad-empty, .crm-visual .ad-small-empty { padding: 24px 16px; font-size: var(--font-size-body, 13px); line-height: 1.6; }
+.crm-visual .ad-empty > svg, .crm-visual .ad-small-empty > svg { width: 22px; height: 22px; margin-bottom: 8px; }
+.crm-visual .ad-empty h3 { font-size: var(--font-size-section, 16px); margin-bottom: 5px; }
+.crm-visual .ad-plan-summary { padding: 0 16px 16px; gap: 16px; }
+.crm-visual .ad-plan-summary .eyebrow { font-size: var(--font-size-label, 11px); line-height: 1.5; }
+.crm-visual .ad-plan-summary > div:first-child > strong { margin: 6px 0 4px; font-size: 26px; letter-spacing: -.035em; line-height: 1.25; }
+.crm-visual .ad-plan-summary p, .crm-visual .ad-plan-summary small { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-plan-summary > div:last-child { gap: 6px; }
+.crm-visual .ad-plan-form { padding: var(--space-4, 16px); }
+.crm-visual .ad-form-grid { gap: var(--space-4, 16px); }
+.crm-visual .ad-form-grid label, .crm-visual .ad-modal-fields label, .crm-visual .ad-owner-select, .crm-visual .ad-delete-confirmation { gap: 6px; font-size: var(--font-size-secondary, 12px); font-weight: 550; line-height: 1.5; }
+.crm-visual .ad-form-grid input, .crm-visual .ad-form-grid select, .crm-visual .ad-modal-fields input, .crm-visual .ad-modal-fields select, .crm-visual .ad-owner-select select, .crm-visual .ad-delete-confirmation input {
+  height: var(--control-height, 34px);
+  min-height: var(--control-height, 34px);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.5;
+}
+.crm-visual .ad-form-grid input::placeholder, .crm-visual .ad-modal-fields input::placeholder, .crm-visual .ad-delete-confirmation input::placeholder { font-size: var(--font-size-body, 13px); }
+.crm-visual .ad-form-grid label > small { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-select-field select { padding-right: 32px; }
+.crm-visual .ad-select-field svg { right: 10px; }
+.crm-visual .ad-billing-note, .crm-visual .ad-form-help { padding: 12px; gap: 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-billing-note { margin-top: 16px; margin-bottom: 16px; }
+.crm-visual .ad-billing-note p { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-customer-billing { margin: 0 16px 16px; }
+.crm-visual .ad-audit-list { padding: 0 16px 4px; }
+.crm-visual .ad-audit-entry { padding: 12px 0; gap: 10px; }
+.crm-visual .ad-audit-icon { width: 30px; height: 30px; border-radius: var(--radius-sm, 6px); }
+.crm-visual .ad-audit-entry strong { font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .ad-audit-entry small { margin-top: 3px; }
+.crm-visual .ad-audit-entry small, .crm-visual .ad-audit-entry time { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .ad-company-form, .crm-visual .ad-company-body, .crm-visual .ad-delete-confirmation { padding: 0 16px 16px; }
+.crm-visual .ad-company-body > p, .crm-visual .ad-restricted p { font-size: var(--font-size-body, 13px); line-height: 1.65; margin-bottom: 12px; }
+.crm-visual .ad-company-body .ad-company-help { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-company-name-body { gap: 16px; }
+.crm-visual .ad-company-name-body > div > span { margin-bottom: 4px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .ad-company-name-body > div > strong { font-size: var(--font-size-section, 16px); line-height: 1.5; }
+.crm-visual .ad-owner-select { max-width: 440px; margin: 12px 0 8px; }
+.crm-visual .ad-restricted { padding: 28px 24px; }
+.crm-visual .ad-restricted h2 { margin-top: 12px; font-size: var(--font-size-page, 22px); }
+.crm-visual .ad-page .button, .crm-visual .ad-modal .button { min-height: var(--control-height, 34px); padding: 6px 10px; gap: 6px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); font-weight: 550; line-height: 1.5; }
+.crm-visual .ad-page .button:hover { box-shadow: none; }
+.crm-visual .ad-modal-backdrop { padding: 24px; backdrop-filter: blur(3px); }
+.crm-visual .ad-modal { width: 560px; max-height: calc(100dvh - 48px); border-radius: var(--radius-lg, 10px); box-shadow: 0 12px 32px rgb(7 11 18 / 18%); }
+.crm-visual .ad-modal.ad-name-modal { width: 460px; }
+.crm-visual .ad-modal-header { padding: 16px; gap: 10px; }
+.crm-visual .ad-modal-header h2 { font-size: 18px; letter-spacing: -.025em; line-height: 1.4; }
+.crm-visual .ad-modal-header p { margin-top: 4px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-modal-fields { padding: 16px; gap: 16px; }
+.crm-visual .ad-modal-footer { padding: 12px 16px; gap: 8px; }
+.crm-visual .ad-invitation-footer { flex-wrap: wrap; }
+.crm-visual .ad-modal > .ad-error { margin: 12px 16px 0; }
+.crm-visual .ad-name-modal .ad-name-help { font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .ad-confirm-body > p { padding: 16px; font-size: var(--font-size-body, 13px); line-height: 1.7; }
+
+.crm-visual .account-state { width: calc(100% - 48px); max-width: 960px; margin: 24px auto; padding: 24px; border-radius: var(--radius-lg, 10px); box-shadow: none; }
+.crm-visual .account-state > svg { width: 24px; height: 24px; }
+.crm-visual .account-state > h1 { margin: 10px 0 6px; font-size: var(--font-size-page, 22px); line-height: 1.35; letter-spacing: -.035em; }
+.crm-visual .account-state > p { font-size: var(--font-size-body, 13px); line-height: 1.6; overflow-wrap: anywhere; }
+.crm-visual .account-state-actions { margin-top: 16px; gap: 8px; }
+.crm-visual .account-state .button { min-height: var(--control-height, 34px); padding: 6px 10px; gap: 6px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .account-profile { margin-top: 24px; padding-top: 20px; }
+.crm-visual .account-profile-heading { margin-bottom: 16px; gap: 12px; }
+.crm-visual .account-profile-heading h2 { font-size: var(--font-size-section, 16px); line-height: 1.4; font-weight: 650; }
+.crm-visual .account-profile-heading p, .crm-visual .account-profile-help { margin-top: 4px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.crm-visual .account-profile-heading > svg { width: 18px; height: 18px; }
+.crm-visual .account-profile form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px; }
+.crm-visual .account-profile-field { min-width: 0; margin-top: 0; gap: 6px; font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .account-profile-field:first-of-type { grid-column: 1; grid-row: 1; }
+.crm-visual .account-profile-field:nth-of-type(2) { grid-column: 2; grid-row: 1; }
+.crm-visual .account-profile-help:nth-of-type(1) { grid-column: 1; grid-row: 2; }
+.crm-visual .account-profile-help:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+.crm-visual .account-profile-field input { min-height: var(--control-height, 34px); height: var(--control-height, 34px); padding: 6px 10px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .account-profile-field input[readonly] { background: var(--color-surface-raised); color: var(--color-text-secondary); }
+.crm-visual .account-profile-email { min-width: 0; min-height: var(--control-height, 34px); padding-left: 10px; gap: 7px; }
+.crm-visual .account-profile-email input { height: 32px; min-height: 32px; padding-left: 0; background: transparent; }
+.crm-visual .account-profile-error, .crm-visual .account-profile-success { grid-column: 1 / -1; margin-top: 10px; padding: 10px 12px; font-size: var(--font-size-body, 13px); line-height: 1.6; }
+.crm-visual .account-profile-actions { grid-column: 1 / -1; margin-top: 12px; gap: 8px; }
+
+/* Access screens share a restrained brand palette with a readable light fallback. */
+.auth-shell { color: var(--color-text-primary, #111827); color-scheme: light; }
+.auth-shell .auth-story { padding: 32px; border-right: 1px solid var(--color-border, #e5e7eb); background: var(--color-background, #f6f7f9); color: var(--color-text-primary, #111827); }
+.auth-shell .auth-brand, .auth-shell .auth-mobile-brand { color: var(--color-text-primary, #111827); }
+.auth-shell .auth-brand .brand-mark span, .auth-shell .auth-mobile-brand .brand-mark span { background: var(--color-primary, #3157d5); }
+.auth-shell .auth-story-copy { max-width: 380px; padding: 32px 0; }
+.auth-shell .auth-story-pill { color: var(--color-primary, #3157d5); font-size: 11px; letter-spacing: .05em; line-height: 1.5; }
+.auth-shell .auth-story h1 { margin: 16px 0 12px; color: var(--color-text-primary, #111827); font-size: 32px; font-weight: 650; line-height: 1.25; letter-spacing: -.04em; }
+.auth-shell .auth-story h1 > span { color: var(--color-primary, #3157d5); }
+.auth-shell .auth-story-copy > p { max-width: 380px; color: var(--color-text-secondary, #667085); font-size: 13px; line-height: 1.7; }
+.auth-shell .auth-preview { max-width: 360px; margin-top: 24px; padding: 16px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; background: var(--color-surface, #fff); box-shadow: none; transform: none; }
+.auth-shell .auth-preview-header { color: var(--color-text-secondary, #667085); font-size: 12px; line-height: 1.5; }
+.auth-shell .auth-preview-dot { background: var(--color-primary, #3157d5); }
+.auth-shell .auth-preview-value { margin-top: 12px; color: var(--color-text-secondary, #667085); font-size: 16px; line-height: 1.5; letter-spacing: -.02em; }
+.auth-shell .auth-preview-value strong { color: var(--color-text-primary, #111827); font-weight: 650; }
+.auth-shell .auth-preview-chart { height: 56px; margin-top: 16px; padding-bottom: 4px; gap: 8px; border-bottom-color: var(--color-border, #e5e7eb); }
+.auth-shell .auth-preview-chart i { border-radius: 3px 3px 0 0; background: var(--color-primary-soft, #d5dffa); }
+.auth-shell .auth-preview-chart i:last-child { background: var(--color-primary, #3157d5); }
+.auth-shell .auth-preview-footer { margin-top: 12px; gap: 12px; color: var(--color-text-secondary, #667085); font-size: 11px; line-height: 1.6; }
+.auth-shell .auth-preview-footer > span { gap: 5px; }
+.auth-shell .auth-preview-footer svg { color: var(--color-primary, #3157d5); }
+.auth-shell .auth-story-footer { gap: 8px; color: var(--color-text-secondary, #667085); font-size: 12px; line-height: 1.6; }
+.auth-shell .auth-main { padding: 32px 40px 72px; background: var(--color-surface, #fff); }
+.auth-shell .auth-card { max-width: 420px; }
+.auth-shell .auth-card-icon { width: 36px; height: 36px; margin-bottom: 16px; border-radius: 8px; border-color: var(--color-border, #e5e7eb); background: var(--color-primary-soft, #eef2ff); color: var(--color-primary, #3157d5); }
+.auth-shell .auth-card-icon > svg { width: 19px; height: 19px; }
+.auth-shell .auth-eyebrow { margin-bottom: 6px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-label, 11px); font-weight: 600; letter-spacing: .07em; }
+.auth-shell .auth-card h2 { max-width: none; color: var(--color-text-primary, #111827); font-size: var(--font-size-page, 22px); font-weight: 650; line-height: 1.35; letter-spacing: -.035em; }
+.auth-shell .auth-description { max-width: none; margin-top: 8px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); line-height: 1.65; }
+.auth-shell .auth-form { margin-top: 20px; gap: 12px; }
+.auth-shell .auth-form > label { min-width: 0; gap: 6px; color: var(--color-text-primary, #111827); font-size: var(--font-size-secondary, 12px); font-weight: 550; line-height: 1.5; }
+.auth-shell .auth-form input:not([type=checkbox]) { min-height: var(--control-height, 34px); padding: 6px 10px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-sm, 6px); color: var(--color-text-primary, #111827); background: var(--color-surface, #fff); font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.auth-shell .auth-form input::placeholder { color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); opacity: 1; }
+.auth-shell .auth-form input:disabled { background: var(--color-surface-raised, #f9fafb); color: var(--color-text-secondary, #667085); opacity: 1; }
+.auth-shell .auth-input-wrap { min-width: 0; min-height: var(--control-height, 34px); padding-left: 10px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-sm, 6px); background: var(--color-surface, #fff); color: var(--color-text-secondary, #667085); }
+.auth-shell .auth-input-wrap > svg { flex: 0 0 auto; }
+.auth-shell .auth-input-wrap:focus-within, .auth-shell .auth-form input:not([type=checkbox]):focus-visible { outline: 0; border-color: var(--color-primary, #3157d5); box-shadow: var(--focus-ring, 0 0 0 3px rgb(49 87 213 / 18%)); }
+.auth-shell .auth-password-toggle { min-width: 32px; min-height: 32px; padding: 6px 8px; color: var(--color-text-secondary, #667085); border-radius: 5px; }
+.auth-shell .auth-password-toggle:hover { color: var(--color-primary, #3157d5); background: var(--color-primary-soft, #eef2ff); }
+.auth-shell .auth-field-help { margin-top: -4px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.auth-shell .auth-forgot { min-height: 24px; margin-top: -4px; padding: 2px 0; color: var(--color-primary, #3157d5); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.auth-shell .auth-primary-button, .auth-shell .auth-secondary-button { min-height: var(--control-height, 34px); padding: 7px 12px; gap: 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); font-weight: 550; line-height: 1.5; box-shadow: none; transition: background var(--transition-fast, 140ms), border-color var(--transition-fast, 140ms), color var(--transition-fast, 140ms); }
+.auth-shell .auth-primary-button { background: var(--color-primary-solid, #3157d5); color: var(--color-on-primary, #fff); }
+.auth-shell .auth-primary-button:hover:not(:disabled) { background: var(--color-primary-hover, #2848b8); }
+.auth-shell .auth-secondary-button { border-color: var(--color-border, #e5e7eb); background: var(--color-surface, #fff); color: var(--color-text-primary, #111827); }
+.auth-shell .auth-secondary-button:hover:not(:disabled) { background: var(--color-surface-raised, #f9fafb); }
+.auth-shell button:disabled { opacity: .55; cursor: not-allowed; }
+.auth-shell button:focus-visible, .auth-shell a:focus-visible, .auth-shell input[type=checkbox]:focus-visible { outline: 2px solid var(--color-primary, #3157d5); outline-offset: 3px; }
+.auth-shell .auth-invite-note { justify-content: flex-start; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.auth-shell .auth-legal-links { margin-top: 20px; flex-wrap: wrap; gap: 8px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.auth-shell .auth-main-footer { bottom: 22px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-label, 11px); line-height: 1.6; }
+.auth-shell .auth-back { min-height: 30px; margin-bottom: 12px; gap: 6px; color: var(--color-primary, #3157d5); font-size: var(--font-size-secondary, 12px); }
+.auth-shell .auth-message { margin-top: 16px; padding: 10px 12px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-sm, 6px); background: var(--color-surface-raised, #f9fafb); color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); line-height: 1.6; }
+.auth-shell .auth-message-error { background: var(--color-danger-soft, #fff0f1); border-color: var(--color-danger-soft, #fff0f1); color: var(--color-danger, #b5474d); }
+.auth-shell .auth-message-success { background: var(--color-success-soft, #ecf8f2); border-color: var(--color-success-soft, #ecf8f2); color: var(--color-success, #147d64); }
+.auth-shell .auth-consent { min-width: 0; gap: 8px; }
+.auth-shell .auth-consent > input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--color-primary-solid, #3157d5); }
+.auth-shell .auth-consent > label { min-width: 0; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.7; overflow-wrap: anywhere; }
+.auth-shell .auth-consent button { color: var(--color-primary, #3157d5); font-size: inherit; }
+.auth-shell .auth-setup, .auth-shell .auth-empty-state { margin-top: 20px; }
+.auth-shell .auth-setup-note { margin-bottom: 16px; padding: 12px; gap: 8px; border-radius: var(--radius-md, 8px); background: var(--color-surface-raised, #f9fafb); color: var(--color-text-secondary, #667085); }
+.auth-shell .auth-setup-note > svg { flex: 0 0 auto; }
+.auth-shell .auth-setup-note p { color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); line-height: 1.65; }
+.auth-shell .auth-demo-link { min-height: 30px; margin-top: 16px; color: var(--color-primary, #3157d5); font-size: var(--font-size-secondary, 12px); }
+.auth-shell .auth-demo-note { margin-top: 6px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.auth-shell .auth-workspace-invite { margin-top: 16px; padding: 12px; gap: 10px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-md, 8px); background: var(--color-surface-raised, #f9fafb); }
+.auth-shell .auth-workspace-avatar { width: 34px; height: 34px; border-radius: var(--radius-sm, 6px); background: var(--color-primary-soft, #eef2ff); color: var(--color-primary, #3157d5); }
+.auth-shell .auth-workspace-avatar > svg { width: 18px; height: 18px; }
+.auth-shell .auth-workspace-invite > div > span { color: var(--color-text-secondary, #667085); font-size: var(--font-size-label, 11px); letter-spacing: .04em; line-height: 1.5; }
+.auth-shell .auth-workspace-invite strong { margin-top: 3px; color: var(--color-text-primary, #111827); font-size: 14px; line-height: 1.5; }
+.auth-shell .auth-workspace-invite p { margin-top: 3px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.auth-shell .auth-workspace-invite > svg { color: var(--color-text-secondary, #667085); }
+.auth-shell .auth-trial-note { margin-top: 12px; color: var(--color-text-secondary, #667085); font-size: var(--font-size-secondary, 12px); line-height: 1.6; }
+.auth-shell .auth-trial-note > svg { color: var(--color-success, #147d64); }
+.auth-shell .auth-signup-link { gap: 8px; font-size: var(--font-size-secondary, 12px); line-height: 1.6; color: var(--color-text-secondary, #667085); flex-wrap: wrap; }
+.auth-shell .auth-signup-link button { min-height: 30px; color: var(--color-primary, #3157d5); font-size: inherit; }
+.auth-shell .auth-legal-backdrop { padding: 24px; background: rgb(11 18 32 / 50%); }
+.auth-shell .auth-legal-dialog { max-height: calc(100dvh - 48px); padding: 24px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-lg, 10px); box-shadow: 0 12px 32px rgb(7 11 18 / 18%); background: var(--color-surface, #fff); }
+.auth-shell .auth-legal-close { border-radius: var(--radius-sm, 6px); background: var(--color-surface-raised, #f9fafb); color: var(--color-text-secondary, #667085); }
+.auth-shell .legal-document { color: var(--color-text-primary, #111827); }
+.auth-shell .legal-icon { width: 36px; height: 36px; margin-bottom: 16px; border-radius: var(--radius-md, 8px); background: var(--color-primary-soft, #eef2ff); color: var(--color-primary, #3157d5); }
+.auth-shell .legal-document h2 { margin-bottom: 12px; color: var(--color-text-primary, #111827); font-size: var(--font-size-page, 22px); letter-spacing: -.035em; }
+.auth-shell .legal-intro { padding: 12px; border-color: var(--color-border, #e5e7eb); border-radius: var(--radius-sm, 6px); background: var(--color-surface-raised, #f9fafb); color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); line-height: 1.7; }
+.auth-shell .legal-document section { margin-top: 20px; }
+.auth-shell .legal-document h3 { margin-bottom: 6px; color: var(--color-text-primary, #111827); font-size: 15px; line-height: 1.5; }
+.auth-shell .legal-document section p { color: var(--color-text-secondary, #667085); font-size: var(--font-size-body, 13px); line-height: 1.75; }
+.auth-shell .legal-document a { color: var(--color-primary, #3157d5); }
+
+@media (max-width: 1100px) {
+  .auth-shell .auth-story { padding: 24px; }
+  .auth-shell .auth-story h1 { font-size: 28px; }
+}
+@media (max-width: 1000px) {
+  .crm-visual .ad-audit-entry time { padding-left: 40px; }
+  .auth-shell .auth-main { padding-right: 24px; padding-left: 24px; }
+}
+@media (max-width: 900px) {
+  .crm-visual .cloud-context-bar { gap: 8px; }
+  .crm-visual .cloud-context-bar > span, .crm-visual .cloud-context-bar > div { min-width: 0; max-width: 100%; flex-wrap: wrap; }
+  .crm-visual .cloud-context-bar select { max-width: 100%; }
+  .crm-visual .administration-shell { padding: 20px 16px; }
+}
+@media (max-width: 760px) {
+  .crm-visual .cloud-context-bar { padding: 8px 12px; }
+  .crm-visual .cloud-context-bar button { min-height: var(--control-height-touch, 40px); padding: 7px 8px; }
+  .crm-visual .cloud-context-bar select, .crm-visual .cloud-context-bar .crm-theme-selector { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .cloud-context-bar .crm-theme-selector select { min-height: 38px; }
+  .crm-visual .account-state { width: calc(100% - 24px); margin: 16px auto; padding: 16px; }
+  .crm-visual .account-profile form { display: block; }
+  .crm-visual .account-profile-field { margin-top: 16px; }
+  .crm-visual .account-profile-field input { height: var(--control-height-touch, 40px); min-height: var(--control-height-touch, 40px); font-size: 16px; }
+  .crm-visual .account-profile-email { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .account-profile-email input { height: 38px; min-height: 38px; }
+  .crm-visual .account-state .button { min-height: var(--control-height-touch, 40px); }
+  .auth-shell .auth-main { min-height: 100dvh; padding: 24px 20px 72px; }
+  .auth-shell .auth-mobile-brand { margin-bottom: 28px; }
+  .auth-shell .auth-card h2 { font-size: 22px; }
+  .auth-shell .auth-form { margin-top: 20px; gap: 14px; }
+  .auth-shell .auth-form input:not([type=checkbox]) { min-height: var(--control-height-touch, 40px); padding: 8px 10px; font-size: 16px; }
+  .auth-shell .auth-form input::placeholder { font-size: 14px; }
+  .auth-shell .auth-input-wrap { min-height: var(--control-height-touch, 40px); }
+  .auth-shell .auth-password-toggle { min-width: 38px; min-height: 38px; }
+  .auth-shell .auth-primary-button, .auth-shell .auth-secondary-button { min-height: var(--control-height-touch, 40px); padding: 9px 12px; }
+  .auth-shell .auth-forgot, .auth-shell .auth-back, .auth-shell .auth-demo-link, .auth-shell .auth-signup-link button { min-height: var(--control-height-touch, 40px); }
+  .auth-shell .auth-workspace-invite { padding: 12px; }
+  .auth-shell .auth-legal-backdrop { padding: 12px; }
+  .auth-shell .auth-legal-dialog { max-height: calc(100dvh - 24px); padding: 20px; }
+}
+@media (max-width: 680px) {
+  .crm-visual .administration-shell { padding: 16px 12px; }
+  .crm-visual .ad-page, .crm-visual .ad-company-sections { gap: 16px; }
+  .crm-visual .ad-context, .crm-visual .ad-link-card { padding: 12px; }
+  .crm-visual .ad-context-title strong { font-size: 20px; }
+  .crm-visual .ad-context-title small { font-size: 12px; }
+  .crm-visual .ad-tabs { justify-content: flex-start; gap: 0; }
+  .crm-visual .ad-tabs button { min-height: var(--control-height-touch, 40px); padding: 8px 10px; font-size: 12px; }
+  .crm-visual .ad-metrics { gap: 8px; }
+  .crm-visual .ad-metrics .stat-card { padding: 12px; }
+  .crm-visual .ad-metrics > .stat-card > strong { margin: 6px 0 4px; font-size: 24px; }
+  .crm-visual .ad-page .panel-header { padding: 12px; gap: 10px; }
+  .crm-visual .ad-toolbar { padding: 0 12px 12px; flex-wrap: wrap; gap: 8px; }
+  .crm-visual .ad-search { max-width: none; min-height: var(--control-height-touch, 40px); }
+  .crm-visual .ad-search input { font-size: 16px; }
+  .crm-visual .ad-refresh { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .ad-page .data-table th, .crm-visual .ad-page .data-table td { padding-right: 12px; padding-left: 12px; }
+  .crm-visual .ad-table-action, .crm-visual .ad-name-action, .crm-visual .ad-save-role { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .ad-member-table .ad-role-editor select { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .ad-team-overview { gap: 12px; }
+  .crm-visual .ad-team-overview strong { font-size: 16px; }
+  .crm-visual .ad-team-overview small, .crm-visual .ad-seat-note { font-size: 12px; }
+  .crm-visual .ad-role-guide { padding: 12px; gap: 12px; }
+  .crm-visual .ad-plan-summary { padding: 0 12px 16px; gap: 12px; }
+  .crm-visual .ad-plan-summary > div:first-child > strong { font-size: 24px; }
+  .crm-visual .ad-plan-form { padding: 16px 12px; }
+  .crm-visual .ad-form-grid { gap: 16px; }
+  .crm-visual .ad-customer-billing { margin: 0 12px 16px; }
+  .crm-visual .ad-audit-list { padding-right: 12px; padding-left: 12px; }
+  .crm-visual .ad-company-form, .crm-visual .ad-company-body, .crm-visual .ad-delete-confirmation { padding: 0 12px 16px; }
+  .crm-visual .ad-company-name-body { gap: 12px; }
+  .crm-visual .ad-company-name-body > button { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .ad-page .button, .crm-visual .ad-modal .button { min-height: var(--control-height-touch, 40px); padding: 8px 10px; font-size: 13px; }
+  .crm-visual .ad-company-body > .button { white-space: normal; }
+  .crm-visual .ad-link-actions { gap: 8px; }
+  .crm-visual .ad-link-actions input { min-height: var(--control-height-touch, 40px); font-size: 14px; }
+  .crm-visual .ad-modal-backdrop { padding: 12px; }
+  .crm-visual .ad-modal { max-height: calc(100dvh - 24px); }
+  .crm-visual .ad-modal-header { padding: 16px 12px; gap: 8px; }
+  .crm-visual .ad-modal-header h2 { font-size: 18px; }
+  .crm-visual .ad-modal-header p { font-size: 12px; }
+  .crm-visual .ad-modal-fields { padding: 16px 12px; gap: 16px; }
+  .crm-visual .ad-modal-fields input, .crm-visual .ad-modal-fields select, .crm-visual .ad-form-grid input, .crm-visual .ad-form-grid select, .crm-visual .ad-owner-select select, .crm-visual .ad-delete-confirmation input { height: var(--control-height-touch, 40px); min-height: var(--control-height-touch, 40px); font-size: 16px; }
+  .crm-visual .ad-modal-footer { padding: 12px; gap: 8px; }
+  .crm-visual .ad-modal-footer .button { min-height: var(--control-height-touch, 40px); padding: 8px 10px; }
+  .crm-visual .ad-modal > .ad-error { margin: 12px 12px 0; }
+  .crm-visual .ad-confirm-body > p { padding: 16px 12px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crm-visual .cloud-context-bar button, .crm-visual .ad-tabs button, .crm-visual .ad-page .data-table tbody tr, .auth-shell .auth-primary-button, .auth-shell .auth-secondary-button { transition: none; }
+}

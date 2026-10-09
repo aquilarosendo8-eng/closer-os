@@ -1,0 +1,607 @@
+/* Operational presentation only; authenticated Pipeline and opportunity details. */
+.crm-visual .pipeline-toolbar {
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-3, 12px);
+}
+.crm-visual .pipeline-toolbar .filter-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 340px;
+  min-height: var(--control-height, 34px);
+  margin: 0;
+  padding: 0 var(--space-3, 12px);
+  gap: var(--space-2, 8px);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-secondary);
+}
+.crm-visual .pipeline-toolbar .filter-search input {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.4;
+}
+.crm-visual .pipeline-toolbar .filter-search input::placeholder {
+  color: var(--color-text-secondary);
+}
+.crm-visual .pipeline-filters {
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+.crm-visual .pipeline-filters .select-wrap {
+  min-height: var(--control-height, 34px);
+  padding: 0 var(--space-2, 8px);
+  gap: var(--space-2, 8px);
+}
+.crm-visual .pipeline-filters .select-wrap select {
+  min-height: 0;
+  padding: 0;
+  font-size: var(--font-size-secondary, 12px);
+}
+.crm-visual .pipeline-filters .pf-config-trigger {
+  min-height: var(--control-height, 34px);
+  padding: 0 var(--space-2, 8px);
+  font-size: var(--font-size-secondary, 12px);
+}
+.crm-visual .pipeline-filters .view-switch {
+  padding: 2px;
+  gap: 2px;
+}
+.crm-visual .pipeline-filters .view-switch button {
+  display: grid;
+  place-items: center;
+  width: var(--control-height-sm, 30px);
+  min-height: var(--control-height-sm, 30px);
+  padding: 0;
+  border-radius: 4px;
+  transition: background var(--transition-fast, 140ms), color var(--transition-fast, 140ms);
+}
+.crm-visual .pipeline-summary {
+  gap: var(--space-1, 4px) var(--space-2, 8px);
+  margin-bottom: var(--space-3, 12px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .pipeline-summary small {
+  display: inline;
+  font-size: var(--font-size-label, 11px);
+  color: var(--color-text-secondary);
+}
+.crm-visual .kanban-board {
+  gap: var(--space-3, 12px);
+  min-height: 360px;
+  padding: 1px 1px var(--space-4, 16px);
+  overscroll-behavior-x: contain;
+}
+.crm-visual .kanban-column {
+  flex: 0 0 244px;
+  min-width: 0;
+  min-height: 320px;
+  padding: var(--space-3, 12px) var(--space-2, 8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-surface-raised);
+  transition: border-color var(--transition-fast, 140ms);
+}
+.crm-visual .kanban-column.drop-enabled {
+  border-style: dashed;
+  border-color: var(--color-primary);
+}
+.crm-visual .kanban-column-header {
+  min-height: var(--control-height-sm, 30px);
+  gap: var(--space-2, 8px);
+  padding: 0 var(--space-1, 4px);
+}
+.crm-visual .kanban-column-header > i {
+  width: 6px;
+  height: 6px;
+}
+.crm-visual .kanban-column-header h2 {
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.4;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.crm-visual .kanban-column-header > span {
+  flex-shrink: 0;
+  padding: 0 5px;
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+.crm-visual .kanban-column-header button {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: var(--control-height-sm, 30px);
+  min-height: var(--control-height-sm, 30px);
+  padding: 0;
+  border-radius: var(--radius-sm, 6px);
+}
+.crm-visual .kanban-column-header button:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+.crm-visual .kanban-column-total {
+  margin: var(--space-1, 4px) var(--space-1, 4px) var(--space-3, 12px);
+  font-size: var(--font-size-secondary, 12px);
+  font-variant-numeric: tabular-nums;
+}
+.crm-visual .kanban-cards { gap: var(--space-2, 8px); }
+.crm-visual .lead-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: none;
+  transition: border-color var(--transition-fast, 140ms), background var(--transition-fast, 140ms);
+}
+.crm-visual .lead-card:hover {
+  border-color: var(--color-text-secondary);
+  box-shadow: none;
+}
+.crm-visual .lead-card:focus-within {
+  border-color: var(--color-primary);
+}
+.crm-visual .lead-card.dragging {
+  opacity: .5;
+  border-style: dashed;
+  border-color: var(--color-primary);
+}
+.crm-visual .lead-card-main {
+  padding: var(--space-3, 12px);
+  line-height: 1.45;
+}
+.crm-visual .lead-card-heading {
+  float: right;
+  width: 48px;
+  gap: var(--space-2, 8px);
+  margin: 0 0 var(--space-1, 4px) var(--space-2, 8px);
+  color: var(--color-text-secondary);
+}
+.crm-visual .lead-card-heading .avatar.small {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 10px;
+}
+.crm-visual .lead-card h3 {
+  margin: 0;
+  font-size: var(--font-size-body, 13px);
+  font-weight: 650;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+.crm-visual .lead-card p {
+  margin: 2px 0 0;
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.crm-visual .lead-card-main > strong {
+  clear: both;
+  margin: var(--space-2, 8px) 0 var(--space-2, 8px);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.crm-visual .lead-card .pf-lead-owner {
+  gap: var(--space-1, 4px);
+  margin: 0 0 var(--space-2, 8px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.4;
+}
+.crm-visual .lead-card-source {
+  max-width: 100%;
+  padding: 2px var(--space-1, 4px);
+  border-radius: 4px;
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.crm-visual .lead-card-date {
+  display: inline-flex;
+  gap: var(--space-1, 4px);
+  margin: 0 0 0 var(--space-2, 8px);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.5;
+}
+.crm-visual .lead-card .stale-note,
+.crm-visual .lead-card .op-next-action {
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-2, 8px);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.45;
+}
+.crm-visual .lead-card.stale {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: inset 2px 0 var(--color-danger);
+}
+.crm-visual .lead-card.stale:focus-within,
+.crm-visual .lead-card.stale:hover { border-color: var(--color-danger); }
+.crm-visual .card-status-label {
+  gap: var(--space-2, 8px);
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  min-height: var(--control-height, 34px);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.crm-visual .card-status-label select {
+  min-height: 26px;
+  padding: 2px 0;
+  font-size: var(--font-size-secondary, 12px);
+}
+.crm-visual .kanban-empty {
+  padding: var(--space-6, 24px) var(--space-2, 8px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .pf-stage-inactive {
+  margin-top: var(--space-1, 4px);
+  font-size: var(--font-size-label, 11px);
+}
+
+/* Lead 360: a compact record header followed by clearly separated sections. */
+.crm-visual .l360-backdrop {
+  padding: var(--space-4, 16px);
+  backdrop-filter: none;
+}
+.crm-visual .l360-dialog {
+  max-height: min(900px, calc(100dvh - 32px));
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.5;
+}
+.crm-visual .l360-header {
+  gap: var(--space-3, 12px);
+  padding: var(--space-4, 16px) var(--space-6, 24px);
+}
+.crm-visual .l360-avatar {
+  width: 40px;
+  height: 40px;
+  margin-top: 0;
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+}
+.crm-visual .l360-eyebrow {
+  margin-bottom: 2px;
+  font-size: 10px;
+  letter-spacing: .06em;
+  line-height: 1.4;
+}
+.crm-visual .l360-heading h2 {
+  font-size: var(--font-size-page, 22px);
+  line-height: 1.3;
+  letter-spacing: -.03em;
+}
+.crm-visual .l360-company {
+  margin-top: var(--space-1, 4px);
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.45;
+}
+.crm-visual .l360-header-meta {
+  gap: var(--space-1, 4px) var(--space-3, 12px);
+  margin-top: var(--space-2, 8px);
+}
+.crm-visual .l360-meta-item {
+  gap: var(--space-1, 4px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .l360-stage,
+.crm-visual .l360-pill {
+  gap: var(--space-1, 4px);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.5;
+}
+.crm-visual .l360-actions { gap: var(--space-2, 8px); }
+.crm-visual .l360-dialog .l360-button {
+  min-height: var(--control-height, 34px);
+  gap: var(--space-1, 4px);
+  padding: 5px var(--space-3, 12px);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-secondary, 12px);
+  transition: background var(--transition-fast, 140ms), border-color var(--transition-fast, 140ms);
+}
+.crm-visual .l360-dialog .l360-icon-button {
+  width: var(--control-height, 34px);
+  height: var(--control-height, 34px);
+  border-radius: var(--radius-sm, 6px);
+}
+.crm-visual .l360-tabs {
+  gap: var(--space-6, 24px);
+  padding: 0 var(--space-6, 24px);
+}
+.crm-visual .l360-dialog .l360-tab {
+  min-height: 40px;
+  gap: var(--space-1, 4px);
+  padding: var(--space-2, 8px) 0;
+  font-size: var(--font-size-body, 13px);
+  font-weight: 600;
+  line-height: 1.5;
+  transition: color var(--transition-fast, 140ms);
+}
+.crm-visual .l360-dialog .l360-tab:hover { color: var(--color-text-primary); }
+.crm-visual .l360-dialog .l360-tab[aria-selected='true'] { color: var(--color-primary); }
+.crm-visual .l360-tab-count { font-size: var(--font-size-label, 11px); }
+.crm-visual .l360-body { padding: var(--space-4, 16px) var(--space-6, 24px) var(--space-6, 24px); }
+.crm-visual .l360-summary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: var(--space-4, 16px);
+  border-radius: var(--radius-md, 8px);
+}
+.crm-visual .l360-stat {
+  padding: var(--space-3, 12px);
+}
+.crm-visual .l360-stat:nth-child(n) {
+  border-bottom: 0;
+  border-right: 1px solid var(--color-border);
+}
+.crm-visual .l360-stat:last-child { border-right: 0; }
+.crm-visual .l360-stat dt {
+  gap: var(--space-1, 4px);
+  margin-bottom: var(--space-1, 4px);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.45;
+}
+.crm-visual .l360-stat dd {
+  font-size: var(--font-size-body, 13px);
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums;
+}
+.crm-visual .l360-stat:first-child dd { font-size: 16px; }
+.crm-visual .l360-stat small { font-size: var(--font-size-label, 11px); line-height: 1.4; }
+.crm-visual .l360-overview-grid { gap: var(--space-6, 24px); }
+.crm-visual .l360-column { gap: var(--space-4, 16px); }
+.crm-visual .l360-card {
+  padding: var(--space-3, 12px) 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+.crm-visual .l360-card-heading {
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-3, 12px);
+}
+.crm-visual .l360-card-heading h3,
+.crm-visual .l360-section-title h3 {
+  gap: var(--space-2, 8px);
+  font-size: var(--font-size-section, 16px);
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -.02em;
+}
+.crm-visual .l360-dialog .l360-text-button {
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .l360-detail-grid { gap: var(--space-3, 12px) var(--space-4, 16px); }
+.crm-visual .l360-detail dt { margin-bottom: 2px; font-size: var(--font-size-label, 11px); line-height: 1.4; }
+.crm-visual .l360-detail dd,
+.crm-visual .l360-note,
+.crm-visual .l360-next-description {
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.55;
+}
+.crm-visual .l360-next-action { gap: var(--space-2, 8px); }
+.crm-visual .l360-next-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm, 6px);
+}
+.crm-visual .l360-next-action strong { font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .l360-next-action p { margin-top: 2px; font-size: var(--font-size-secondary, 12px); }
+.crm-visual .l360-next-action small { margin-top: var(--space-1, 4px); font-size: var(--font-size-label, 11px); }
+.crm-visual .l360-next-description,
+.crm-visual .l360-current-next {
+  margin-top: var(--space-3, 12px);
+  padding-top: var(--space-2, 8px);
+}
+.crm-visual .l360-current-recording { margin-top: var(--space-3, 12px); }
+.crm-visual .l360-overdue-label { margin-top: var(--space-2, 8px); }
+.crm-visual .l360-alert,
+.crm-visual .l360-outcome {
+  margin-bottom: var(--space-4, 16px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .l360-section-title { gap: var(--space-3, 12px); margin-bottom: var(--space-3, 12px); }
+.crm-visual .l360-section-title p { margin-top: var(--space-1, 4px); font-size: var(--font-size-secondary, 12px); }
+.crm-visual .l360-call-list { gap: var(--space-3, 12px); }
+.crm-visual .l360-call { padding: var(--space-3, 12px) var(--space-4, 16px); border-radius: var(--radius-md, 8px); }
+.crm-visual .l360-call-header { gap: var(--space-2, 8px); margin-bottom: var(--space-3, 12px); }
+.crm-visual .l360-call-date { font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .l360-call-byline { margin-top: var(--space-1, 4px); font-size: var(--font-size-label, 11px); }
+.crm-visual .l360-call-content { gap: var(--space-3, 12px) var(--space-4, 16px); }
+.crm-visual .l360-call-content p,
+.crm-visual .l360-call-review p { font-size: var(--font-size-body, 13px); line-height: 1.55; }
+.crm-visual .l360-call-expanded { margin-top: var(--space-3, 12px); padding-top: var(--space-3, 12px); }
+.crm-visual .l360-call-review {
+  margin-top: var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border: 0;
+  border-left: 2px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface-raised);
+}
+.crm-visual .l360-call-review p { margin-top: var(--space-2, 8px); }
+.crm-visual .l360-call-review small { margin-top: var(--space-2, 8px); font-size: var(--font-size-label, 11px); }
+.crm-visual .l360-call-footer { gap: var(--space-2, 8px); margin-top: var(--space-3, 12px); }
+.crm-visual .l360-event {
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: var(--space-3, 12px);
+  padding-bottom: var(--space-4, 16px);
+}
+.crm-visual .l360-event:not(:last-child)::after { top: 25px; left: 11px; }
+.crm-visual .l360-event-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 6px);
+}
+.crm-visual .l360-event-icon svg { width: 12px; height: 12px; }
+.crm-visual .l360-event-header { gap: var(--space-2, 8px); }
+.crm-visual .l360-event h4 { margin-top: 2px; font-size: var(--font-size-body, 13px); line-height: 1.5; }
+.crm-visual .l360-event time { margin-top: var(--space-1, 4px); font-size: var(--font-size-label, 11px); line-height: 1.5; }
+.crm-visual .l360-event p { margin-top: var(--space-1, 4px); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .l360-event-byline { margin-top: var(--space-1, 4px); font-size: var(--font-size-label, 11px); line-height: 1.4; }
+.crm-visual .l360-empty,
+.crm-visual .l360-load-state {
+  min-height: 140px;
+  gap: var(--space-2, 8px);
+  padding: var(--space-4, 16px);
+}
+.crm-visual .l360-empty > svg { width: 24px; height: 24px; }
+.crm-visual .l360-empty p,
+.crm-visual .l360-load-state p { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .l360-empty.is-compact,
+.crm-visual .l360-load-state.is-compact { min-height: 72px; padding: var(--space-2, 8px) 0; }
+.crm-visual .l360-pagination { margin-top: var(--space-4, 16px); }
+
+/* Existing pipeline setup and stage outcomes share the same compact rhythm. */
+.crm-visual .pf-backdrop { padding: var(--space-4, 16px); backdrop-filter: none; }
+.crm-visual .pf-dialog { max-height: calc(100dvh - 32px); border-radius: var(--radius-lg, 10px); box-shadow: var(--shadow-popover); }
+.crm-visual .pf-dialog-header { gap: var(--space-3, 12px); padding: var(--space-4, 16px); }
+.crm-visual .pf-dialog-header h2 { font-size: var(--font-size-page, 22px); line-height: 1.35; }
+.crm-visual .pf-dialog-header p { margin-top: var(--space-1, 4px); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .pf-dialog-icon { width: 36px; height: 36px; border-radius: var(--radius-md, 8px); }
+.crm-visual .pf-transition-body { gap: var(--space-4, 16px); padding: var(--space-4, 16px); }
+.crm-visual .pf-transition-lead { gap: var(--space-1, 4px); padding: var(--space-3, 12px); }
+.crm-visual .pf-transition-lead strong { font-size: var(--font-size-body, 13px); }
+.crm-visual .pf-transition-lead span,
+.crm-visual .pf-transition-lead small { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .pf-field,
+.crm-visual .pf-config-field { gap: var(--space-1, 4px); font-size: var(--font-size-secondary, 12px); }
+.crm-visual .pf-field input,
+.crm-visual .pf-field select,
+.crm-visual .pf-config-field input:not([type='color']),
+.crm-visual .pf-config-field select {
+  min-height: var(--control-height, 34px);
+  padding: 6px var(--space-2, 8px);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.4;
+}
+.crm-visual .pf-field textarea {
+  min-height: 88px;
+  padding: var(--space-2, 8px);
+  border-radius: var(--radius-sm, 6px);
+  font-size: var(--font-size-body, 13px);
+  line-height: 1.5;
+}
+.crm-visual .pf-config-color-field input[type='color'] {
+  width: var(--control-height, 34px);
+  height: var(--control-height, 34px);
+}
+.crm-visual .pf-dialog .button {
+  min-height: var(--control-height, 34px);
+  padding: 6px var(--space-3, 12px);
+  font-size: var(--font-size-secondary, 12px);
+  border-radius: var(--radius-sm, 6px);
+  line-height: 1.4;
+}
+.crm-visual .pf-dialog-footer,
+.crm-visual .pf-config-footer { gap: var(--space-2, 8px); padding: var(--space-3, 12px) var(--space-4, 16px); }
+.crm-visual .pf-config-intro { padding: var(--space-3, 12px) var(--space-4, 16px); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .pf-config-stages { gap: var(--space-3, 12px); padding: 0 var(--space-4, 16px) var(--space-3, 12px); }
+.crm-visual .pf-config-stage { padding: var(--space-3, 12px); border-radius: var(--radius-md, 8px); }
+.crm-visual .pf-config-stage-heading { gap: var(--space-2, 8px); margin-bottom: var(--space-3, 12px); }
+.crm-visual .pf-config-stage-grid { gap: var(--space-3, 12px); }
+.crm-visual .pf-config-stage-title { font-size: var(--font-size-body, 13px); }
+.crm-visual .pf-config-stage-footer { gap: var(--space-2, 8px); margin-top: var(--space-3, 12px); }
+.crm-visual .pf-config-stage-reason { margin-top: var(--space-2, 8px); font-size: var(--font-size-label, 11px); line-height: 1.5; }
+.crm-visual .pf-config-add { margin: 0 var(--space-4, 16px) var(--space-3, 12px); }
+.crm-visual .pf-config-form > .pf-config-stage-reason { margin: 0 var(--space-4, 16px) var(--space-3, 12px); }
+.crm-visual .pf-error,
+.crm-visual .pf-config-error { padding: var(--space-2, 8px) var(--space-3, 12px); font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
+.crm-visual .pf-config-error { margin: 0 var(--space-4, 16px) var(--space-3, 12px); }
+
+@media (max-width: 1100px) {
+  .crm-visual .pipeline-toolbar { flex-wrap: wrap; }
+  .crm-visual .pipeline-toolbar .filter-search { max-width: none; }
+  .crm-visual .l360-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .crm-visual .l360-stat:nth-child(-n + 3) { border-bottom: 1px solid var(--color-border); }
+  .crm-visual .l360-stat:nth-child(3n) { border-right: 0; }
+}
+@media (max-width: 800px) {
+  .crm-visual .l360-header { padding: var(--space-4, 16px); }
+  .crm-visual .l360-tabs { padding: 0 var(--space-4, 16px); gap: var(--space-4, 16px); }
+  .crm-visual .l360-body { padding: var(--space-4, 16px); }
+  .crm-visual .l360-overview-grid { gap: var(--space-4, 16px); }
+  .crm-visual .l360-column { gap: var(--space-4, 16px); }
+}
+@media (max-width: 680px) {
+  .crm-visual .pipeline-toolbar { align-items: stretch; flex-direction: column; }
+  .crm-visual .pipeline-toolbar .filter-search { flex-basis: auto; min-height: var(--control-height-touch, 40px); }
+  .crm-visual .pipeline-filters { align-items: center; justify-content: flex-start; gap: var(--space-2, 8px); }
+  .crm-visual .pipeline-filters .select-wrap,
+  .crm-visual .pipeline-filters .pf-config-trigger { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .pipeline-filters .view-switch button { width: 34px; min-height: 34px; }
+  .crm-visual .pipeline-summary { flex-wrap: wrap; }
+  .crm-visual .pipeline-summary small { flex: 1 1 100%; margin-left: 0; }
+  .crm-visual .kanban-column { flex-basis: 244px; }
+  .crm-visual .kanban-column-header button { width: 34px; min-height: 34px; }
+  .crm-visual .card-status-label { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .card-status-label select { min-height: 32px; }
+  .crm-visual .pf-dialog .button,
+  .crm-visual .pf-field input,
+  .crm-visual .pf-field select,
+  .crm-visual .pf-config-field input:not([type='color']),
+  .crm-visual .pf-config-field select { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .pf-field input,
+  .crm-visual .pf-field select,
+  .crm-visual .pf-config-field input:not([type='color']),
+  .crm-visual .pf-config-field select { font-size: 16px; }
+}
+@media (max-width: 560px) {
+  .crm-visual .l360-backdrop { padding: 0; }
+  .crm-visual .l360-dialog { height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .crm-visual .l360-header { grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-2, 8px); padding: var(--space-3, 12px) var(--space-4, 16px); }
+  .crm-visual .l360-avatar { width: 32px; height: 32px; font-size: var(--font-size-secondary, 12px); }
+  .crm-visual .l360-heading h2 { padding-right: 40px; font-size: 20px; }
+  .crm-visual .l360-actions .l360-icon-button { top: var(--space-3, 12px); right: var(--space-4, 16px); width: 40px; height: 40px; }
+  .crm-visual .l360-actions .l360-button { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .l360-tabs { gap: var(--space-4, 16px); }
+  .crm-visual .l360-dialog .l360-tab { min-height: 44px; font-size: var(--font-size-secondary, 12px); }
+  .crm-visual .l360-body { padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-4, 16px); }
+  .crm-visual .l360-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crm-visual .l360-stat:nth-child(n) { border-right: 1px solid var(--color-border); border-bottom: 0; }
+  .crm-visual .l360-stat:nth-child(-n + 4) { border-bottom: 1px solid var(--color-border); }
+  .crm-visual .l360-stat:nth-child(2n) { border-right: 0; }
+  .crm-visual .l360-card-heading { flex-wrap: wrap; }
+  .crm-visual .l360-card-heading h3,
+  .crm-visual .l360-section-title h3 { font-size: 15px; }
+  .crm-visual .l360-dialog .l360-text-button { min-height: var(--control-height-sm, 30px); padding: var(--space-1, 4px) 0; }
+  .crm-visual .l360-call { padding: var(--space-3, 12px); }
+  .crm-visual .l360-call-review-heading { align-items: flex-start; flex-wrap: wrap; gap: var(--space-2, 8px); }
+  .crm-visual .l360-call-footer .l360-button { min-height: var(--control-height-touch, 40px); }
+  .crm-visual .l360-event-header { gap: 2px; }
+  .crm-visual .l360-event time { margin-top: 0; }
+  .crm-visual .pf-backdrop { padding: var(--space-2, 8px); }
+  .crm-visual .pf-dialog { max-height: calc(100dvh - 16px); }
+  .crm-visual .pf-dialog-header h2 { font-size: 20px; }
+  .crm-visual .pf-config-stage-grid { grid-template-columns: 1fr; }
+}
+@media (max-height: 560px) and (min-width: 561px) {
+  .crm-visual .l360-backdrop,
+  .crm-visual .pf-backdrop { padding: var(--space-2, 8px); }
+  .crm-visual .l360-dialog,
+  .crm-visual .pf-dialog { max-height: calc(100dvh - 16px); }
+  .crm-visual .l360-header { padding: var(--space-2, 8px) var(--space-4, 16px); }
+  .crm-visual .l360-dialog .l360-tab { min-height: 36px; padding: var(--space-1, 4px) 0; }
+}
