@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import { createInboundState, mountInbound, openInbound, seedIntegration, memberIds, workspaceA, workspaceB, type InboundState } from './fixtures/inbound'
 import { openOpportunity } from './fixtures/opportunity'
+import { assertMasterClean, mountMaster, openMasterCompany } from './fixtures/master-admin'
 
 const externalMapping = { name: 'full_name', email: 'email_address', phone: 'whatsapp', company: 'company_name', ticket: 'interest', notes: 'context' }
 const payload = { full_name: 'João Silva', email_address: ' JOAO@EXAMPLE.INVALID ', whatsapp: '+55 (77) 99999-9999', company_name: 'XPTO', interest: 15000, context: 'Formulário enviado pelo site', unexpected: 'Este campo não deve aparecer nas observações', workspaceId: workspaceB, ownerId: memberIds.viewer }
@@ -296,14 +297,16 @@ for (const role of ['manager', 'closer', 'viewer'] as const) test(`${role} canno
   clean(state)
 })
 
-test('platform administration alone never requests client integration metadata or logs', async ({ page }) => {
-  const state = await mountInbound(page, 'platform')
-  await page.getByRole('row').filter({ hasText: 'Aurora Comercial' }).getByRole('button', { name: /Administrar/ }).click()
+test('platform administration requests only dedicated administrative integration metadata without operating on client leads', async ({ page }) => {
+  const state = await mountMaster(page)
+  await openMasterCompany(page)
   await expect(page.getByRole('tab', { name: 'Equipe', exact: true })).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'Integrações', exact: true })).toHaveCount(0)
-  expect(state.inboundRequests.filter(request => /inbound/.test(request.path))).toHaveLength(0)
-  expect(state.receivedRequests).toHaveLength(0)
-  clean(state)
+  await page.getByRole('tab', { name: 'Integrações', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Formulários e Webhooks', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Nova integração', exact: true })).toBeEnabled()
+  expect(state.requests.filter(request => /inbound/.test(request.path)).every(request => /\/platform_/.test(request.path))).toBe(true)
+  expect(state.profile.requests.filter(request => /\/leads$|list_pipeline_stages|list_call_reviews/.test(request.path))).toEqual([])
+  assertMasterClean(state)
 })
 
 test('switching companies discards an older integration response and exposes only the selected company', async ({ page }) => {

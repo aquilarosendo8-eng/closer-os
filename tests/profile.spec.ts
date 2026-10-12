@@ -460,10 +460,11 @@ for (const role of ['manager', 'closer', 'viewer'] as const) test(`${role} has n
   expect(memberWrites(state)).toHaveLength(0); expect(companyWrites(state)).toHaveLength(0); clean(state)
 })
 
-test('platform administration alone cannot rename a member or a company without company-admin membership', async ({ page }) => {
+test('platform administration alone cannot rename member aliases or use legacy company-admin controls without membership', async ({ page }) => {
   const state = await mountProfile(page, 'platform')
   await page.getByRole('row').filter({ hasText: 'Aurora Comercial' }).getByRole('button', { name: /Administrar/ }).click()
   await expect(page.getByRole('tab', { name: 'Equipe', exact: true })).toBeVisible()
+  await page.getByRole('tab', { name: 'Equipe', exact: true }).click()
   await expect(page.getByRole('button', { name: /^Editar nome de / })).toHaveCount(0)
   await expect(page.getByRole('tab', { name: 'Empresa', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Editar nome da empresa', exact: true })).toHaveCount(0)

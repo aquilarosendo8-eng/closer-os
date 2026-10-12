@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowRightLeft, Check, LoaderCircle, X } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Check, LoaderCircle, X } from 'lucide-react'
 import { LOSS_REASONS, type Lead, type PipelineStage } from '../types'
 import { money } from '../lib/analytics'
+import { isSchedulingStage } from '../lib/pipeline'
+import { callScheduleDate, localCallDateFields } from '../lib/call-scheduling'
 import './pipeline-features.css'
 
 export interface StageTransitionInput {
   closedValue?: number
   lossReason?: string
   lossComment?: string
+  callDate?: string
 }
 
 interface PipelineFeatureDialogProps {
@@ -76,36 +79,50 @@ export default function StageTransitionModal({ lead, stage, onConfirm, onClose }
   onClose: () => void
 }) {
   const won = stage.type === 'WON'
+  const scheduling = isSchedulingStage(stage)
+  const initialCall = localCallDateFields(lead.callDate)
+  const [callDate, setCallDate] = useState(initialCall.date)
+  const [callTime, setCallTime] = useState(initialCall.time)
   const [closedValue, setClosedValue] = useState(lead.closedValue > 0 ? String(lead.closedValue) : '')
   const [reason, setReason] = useState(LOSS_REASONS.includes(lead.lossReason as typeof LOSS_REASONS[number]) ? lead.lossReason! : '')
   const [comment, setComment] = useState(lead.lossComment || '')
   const [pending, setPending] = useState(false)
+  const submitting = useRef(false)
   const [error, setError] = useState('')
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (pending) return
+    if (submitting.current) return
     const value = Number(closedValue)
+    let scheduledDate: string | undefined
+    if (scheduling) {
+      try { scheduledDate = callScheduleDate(callDate, callTime) }
+      catch (cause) { setError(cause instanceof Error ? cause.message : 'Revise a data e o horário da reunião.'); return }
+    }
     if (won && (!Number.isFinite(value) || value <= 0)) { setError('Informe o valor realmente fechado, maior que zero.'); return }
-    if (!won && !LOSS_REASONS.includes(reason as typeof LOSS_REASONS[number])) { setError('Selecione o motivo da perda.'); return }
+    if (!won && !scheduling && !LOSS_REASONS.includes(reason as typeof LOSS_REASONS[number])) { setError('Selecione o motivo da perda.'); return }
+    submitting.current = true
     setPending(true); setError('')
     try {
-      await onConfirm(won ? { closedValue: value } : { lossReason: reason, lossComment: comment.trim() })
+      await onConfirm(scheduling ? { callDate: scheduledDate } : won ? { closedValue: value } : { lossReason: reason, lossComment: comment.trim() })
       onClose()
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível atualizar esta oportunidade. Tente novamente.') }
-    finally { setPending(false) }
+    finally { submitting.current = false; setPending(false) }
   }
 
-  return <PipelineFeatureDialog title={won ? 'Confirmar fechamento' : 'Por que esta oportunidade foi perdida?'} description={`Registre o resultado de ${lead.name} na etapa ${stage.name}.`} onClose={onClose} busy={pending} icon={<ArrowRightLeft size={22}/>}>
+  return <PipelineFeatureDialog title={scheduling ? 'Agendar call' : won ? 'Confirmar fechamento' : 'Por que esta oportunidade foi perdida?'} description={scheduling ? `Defina a reunião de ${lead.name || 'esta oportunidade'} antes de mover para ${stage.name}.` : `Registre o resultado de ${lead.name} na etapa ${stage.name}.`} onClose={onClose} busy={pending} icon={scheduling ? <CalendarDays size={22}/> : <ArrowRightLeft size={22}/>}>
     <form className="pf-transition-form" onSubmit={event => void save(event)}>
       <div className="pf-transition-body">
         <div className="pf-transition-lead"><strong>{lead.name}</strong><span>{lead.company || 'Pessoa física'}</span><small>Ticket previsto: {money(lead.ticket)}</small></div>
-        {won ? <label className="pf-field">Valor fechado (R$)<input data-autofocus type="number" required min="0.01" step="0.01" value={closedValue} disabled={pending} onChange={event => setClosedValue(event.target.value)} placeholder="Valor confirmado da venda"/><small>O faturamento considera o valor fechado informado.</small></label> : <>
+        {scheduling ? <>
+          <label className="pf-field">Data da reunião<input data-autofocus type="date" required value={callDate} disabled={pending} onChange={event => setCallDate(event.target.value)}/></label>
+          <label className="pf-field">Horário da reunião<input type="time" required value={callTime} disabled={pending} onChange={event => setCallTime(event.target.value)}/><small>Horário local deste dispositivo, como nos demais campos de data do CRM.</small></label>
+        </> : won ? <label className="pf-field">Valor fechado (R$)<input data-autofocus type="number" required min="0.01" step="0.01" value={closedValue} disabled={pending} onChange={event => setClosedValue(event.target.value)} placeholder="Valor confirmado da venda"/><small>O faturamento considera o valor fechado informado.</small></label> : <>
           <label className="pf-field">Motivo da perda<select data-autofocus required value={reason} disabled={pending} onChange={event => setReason(event.target.value)}><option value="">Selecione um motivo</option>{LOSS_REASONS.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
           <label className="pf-field">Comentário adicional<textarea rows={4} maxLength={4000} value={comment} disabled={pending} onChange={event => setComment(event.target.value)} placeholder="Contexto e pontos importantes para aprender com esta oportunidade"/></label>
         </>}
         {error && <p className="pf-error" role="alert">{error}</p>}
       </div>
-      <footer className="pf-dialog-footer"><button type="button" className="button button-secondary" disabled={pending} onClick={onClose}>Cancelar</button><button type="submit" className="button button-primary" disabled={pending}>{pending ? <LoaderCircle size={16} className="pf-spinning"/> : <Check size={16}/>} {won ? 'Confirmar fechamento' : 'Registrar perda'}</button></footer>
+      <footer className="pf-dialog-footer"><button type="button" className="button button-secondary" disabled={pending} onClick={onClose}>Cancelar</button><button type="submit" className="button button-primary" disabled={pending}>{pending ? <LoaderCircle size={16} className="pf-spinning"/> : <Check size={16}/>} {scheduling ? 'Confirmar agendamento' : won ? 'Confirmar fechamento' : 'Registrar perda'}</button></footer>
     </form>
   </PipelineFeatureDialog>
 }

@@ -1,4 +1,5 @@
 import { STATUSES, type Lead, type LeadStatus, type Stage, type StageType } from '../types'
+import { futureCallDate } from './call-scheduling'
 
 const stageColors = ['#afa3ce', '#9581c4', '#7194d6', '#d3a064', '#b67fc3', '#4e9e80', '#bf818a']
 
@@ -18,6 +19,12 @@ export const leadStageType = getLeadStageType
 export const isWon = (lead: Lead) => getLeadStageType(lead) === 'WON'
 export const isLost = (lead: Lead) => getLeadStageType(lead) === 'LOST'
 export const getLeadStageName = (lead: Lead) => lead.stageName || lead.status
+
+/** Exact names only: a terminal or similarly named stage is never a scheduling stage. */
+export function isSchedulingStage(stage: Pick<Stage, 'type' | 'name'>): boolean {
+  const name = stage.name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim().replace(/\s+/g, ' ').toLowerCase()
+  return stage.type === 'NORMAL' && (name === 'agendado' || name === 'call agendada')
+}
 
 function legacyStatus(lead: Lead, stage: Stage): LeadStatus {
   if (stage.type === 'WON') return 'Fechado'
@@ -39,8 +46,12 @@ export function stageLead(lead: Lead, stage: Stage): Lead {
   }
 }
 
-export function transitionLead(lead: Lead, stage: Stage, closedValue?: number, lossReason?: string, lossComment?: string): Lead {
+export function transitionLead(lead: Lead, stage: Stage, closedValue?: number, lossReason?: string, lossComment?: string, callDate?: string): Lead {
   const next = stageLead(lead, stage)
+  if (isSchedulingStage(stage)) {
+    next.callDate = futureCallDate(callDate || '')
+    next.attendance = 'Pendente'
+  }
   if (stage.type === 'WON' && closedValue !== undefined) next.closedValue = closedValue
   if (stage.type === 'LOST') {
     if (lossReason !== undefined) next.lossReason = lossReason

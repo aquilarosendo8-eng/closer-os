@@ -1,6 +1,6 @@
 import type { Stage } from '../types'
 import { applicationUrl, requireSupabase } from './supabase'
-import { INBOUND_FIELDS, type InboundCredentialResult, type InboundFieldMapping, type InboundIntegration, type InboundIntegrationInput, type InboundIntegrationLog, type InboundIntegrationService, type InboundLogPage } from './inbound-types'
+import { INBOUND_FIELDS, type InboundAdministrativeOptions, type InboundCredentialResult, type InboundFieldMapping, type InboundIntegration, type InboundIntegrationInput, type InboundIntegrationLog, type InboundIntegrationService, type InboundLogPage } from './inbound-types'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN = /^[a-f0-9]{64}$/
@@ -57,14 +57,32 @@ async function rpc(name: string, params: Record<string, unknown>): Promise<unkno
   return data
 }
 
-export const inboundIntegrationService: InboundIntegrationService = {
+async function administrativeOptions(workspaceId: string): Promise<InboundAdministrativeOptions> {
+  assertId(workspaceId)
+  const result = await rpc('platform_inbound_options', { p_workspace_id: workspaceId })
+  if (!object(result) || !Array.isArray(result.stages) || !Array.isArray(result.owners)) throw invalidResponse()
+  const stages = result.stages.map(value => {
+    if (!object(value) || typeof value.id !== 'string' || !UUID.test(value.id) || typeof value.name !== 'string') throw invalidResponse()
+    return { id: value.id, name: value.name }
+  })
+  const owners = result.owners.map(value => {
+    if (!object(value) || typeof value.user_id !== 'string' || !UUID.test(value.user_id) || typeof value.display_name !== 'string') throw invalidResponse()
+    return { userId: value.user_id, displayName: value.display_name }
+  })
+  return { stages, owners }
+}
+
+function integrationService(platform: boolean): InboundIntegrationService {
+ const call = (name: string, params: Record<string, unknown>) => rpc(platform ? `platform_${name}` : name, params)
+ return {
   async list(workspaceId) {
     assertId(workspaceId)
-    const rows = await rpc('list_inbound_integrations', { p_workspace_id: workspaceId })
+    const rows = await call('list_inbound_integrations', { p_workspace_id: workspaceId })
     if (!Array.isArray(rows)) throw invalidResponse()
     return rows.map(row => integration(row, workspaceId))
   },
   async listStages(workspaceId) {
+    if (platform) throw new Error('Use as opções administrativas de etapas e responsáveis.')
     assertId(workspaceId)
     const rows = await rpc('list_pipeline_stages', { p_workspace_id: workspaceId })
     if (!Array.isArray(rows)) throw invalidResponse()
@@ -76,38 +94,39 @@ export const inboundIntegrationService: InboundIntegrationService = {
   async listLogs(workspaceId, integrationId, beforeId) {
     assertId(workspaceId); assertId(integrationId)
     if (beforeId !== undefined && !/^[1-9][0-9]*$/.test(beforeId)) throw new Error('Atualize os recebimentos antes de continuar.')
-    const page = await rpc('list_inbound_integration_logs', { p_workspace_id: workspaceId, p_integration_id: integrationId, p_before_id: beforeId || null, p_limit: 30 })
+    const page = await call('list_inbound_integration_logs', { p_workspace_id: workspaceId, p_integration_id: integrationId, p_before_id: beforeId || null, p_limit: 30 })
     if (!object(page) || !Array.isArray(page.items) || (page.next_cursor !== null && !/^[1-9][0-9]*$/.test(String(page.next_cursor)))) throw invalidResponse()
     const items: InboundIntegrationLog[] = page.items.map(value => {
       if (!object(value) || !/^[1-9][0-9]*$/.test(String(value.id)) || value.workspace_id !== workspaceId || value.integration_id !== integrationId || typeof value.request_id !== 'string' || !UUID.test(value.request_id)
         || !['created', 'duplicate', 'rejected', 'error'].includes(String(value.status)) || !timestamp(value.created_at)) throw invalidResponse()
       return { id: String(value.id), workspaceId, integrationId, requestId: value.request_id, status: value.status as InboundIntegrationLog['status'],
-        leadId: nullableText(value.lead_id), duplicateLeadId: nullableText(value.duplicate_lead_id), errorCode: nullableText(value.error_code), createdAt: value.created_at }
+        leadId: platform ? null : nullableText(value.lead_id), duplicateLeadId: platform ? null : nullableText(value.duplicate_lead_id), errorCode: nullableText(value.error_code), createdAt: value.created_at }
     })
     return { items, nextCursor: page.next_cursor === null ? null : String(page.next_cursor) } as InboundLogPage
   },
   async create(workspaceId, input) {
     assertId(workspaceId)
-    return credential(await rpc('create_inbound_integration', { p_workspace_id: workspaceId, ...checkedInput(input) }), workspaceId)
+    return credential(await call('create_inbound_integration', { p_workspace_id: workspaceId, ...checkedInput(input) }), workspaceId)
   },
   async update(workspaceId, integrationId, input) {
     assertId(workspaceId); assertId(integrationId)
-    return integration(await rpc('update_inbound_integration', { p_workspace_id: workspaceId, p_integration_id: integrationId, ...checkedInput(input) }), workspaceId)
+    return integration(await call('update_inbound_integration', { p_workspace_id: workspaceId, p_integration_id: integrationId, ...checkedInput(input) }), workspaceId)
   },
   async setActive(workspaceId, integrationId, active) {
     assertId(workspaceId); assertId(integrationId)
     if (typeof active !== 'boolean') throw new Error('Selecione uma situação válida para a integração.')
-    return integration(await rpc('set_inbound_integration_active', { p_workspace_id: workspaceId, p_integration_id: integrationId, p_active: active }), workspaceId)
+    return integration(await call('set_inbound_integration_active', { p_workspace_id: workspaceId, p_integration_id: integrationId, p_active: active }), workspaceId)
   },
   async rotate(workspaceId, integrationId) {
     assertId(workspaceId); assertId(integrationId)
-    return credential(await rpc('rotate_inbound_integration_token', { p_workspace_id: workspaceId, p_integration_id: integrationId }), workspaceId)
+    return credential(await call('rotate_inbound_integration_token', { p_workspace_id: workspaceId, p_integration_id: integrationId }), workspaceId)
   },
   async archive(workspaceId, integrationId) {
     assertId(workspaceId); assertId(integrationId)
-    return integration(await rpc('archive_inbound_integration', { p_workspace_id: workspaceId, p_integration_id: integrationId }), workspaceId)
+    return integration(await call('archive_inbound_integration', { p_workspace_id: workspaceId, p_integration_id: integrationId }), workspaceId)
   },
   async testWebhook(value, payload) {
+    if (platform) throw new Error('O teste que cria oportunidades está disponível somente à operação autorizada da empresa.')
     let destination: URL
     try { destination = new URL(value) } catch { throw new Error('Use a URL exibida ao criar ou redefinir a credencial.') }
     if (destination.origin !== new URL(applicationUrl()).origin || destination.pathname !== '/api/inbound-leads' || destination.username || destination.password || destination.hash
@@ -122,4 +141,10 @@ export const inboundIntegrationService: InboundIntegrationService = {
     if (!object(result) || !['created', 'duplicate'].includes(String(result.status)) || typeof result.leadId !== 'string' || !result.leadId || typeof result.requestId !== 'string' || !UUID.test(result.requestId)) throw new Error('Não recebemos a confirmação do teste. Confira os recebimentos antes de reenviar.')
     return { status: result.status as 'created' | 'duplicate', leadId: result.leadId, requestId: result.requestId }
   },
+  ...(platform ? { listAdministrativeOptions: administrativeOptions } : {}),
+ }
 }
+
+export const inboundIntegrationService = integrationService(false)
+/** Explicit administrative RPCs: no membership, lead lookups, or webhook ingestion. */
+export const platformInboundIntegrationService = integrationService(true)

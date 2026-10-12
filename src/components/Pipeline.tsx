@@ -4,7 +4,7 @@ import type { Lead, PipelineStage } from '../types'
 import type { Activity } from '../lib/opportunity-types'
 import { nextActivity, overdueActivityLabel, formatActivityDate, activityTypeLabel } from '../lib/opportunity'
 import { initials, isStale, money } from '../lib/analytics'
-import { defaultPipelineStages, leadInStage, leadStageType, transitionLead } from '../lib/pipeline'
+import { defaultPipelineStages, isSchedulingStage, leadInStage, leadStageType, transitionLead } from '../lib/pipeline'
 import PipelineConfiguration from './PipelineConfiguration'
 import StageTransitionModal, { type StageTransitionInput } from './StageTransitionModal'
 import './pipeline-features.css'
@@ -46,11 +46,11 @@ export default function Pipeline({ leads, stages, onEdit, onAdd, onUpdate, canEd
   const showOwners = Object.keys(owners).length > 0
   const amount = (lead: Lead) => leadStageType(lead) === 'WON' ? lead.closedValue : lead.ticket
   const move = async (id: string, stage: PipelineStage) => {
-    if (!canEdit || moving || !stage.active) return
+    if (!canEdit || moving || transition || !stage.active) return
     setError('')
     const lead = leads.find(item => item.id === id)
     if (!lead || leadInStage(lead, stage)) return
-    if (stage.type === 'LOST' || (stage.type === 'WON' && !(Number.isFinite(lead.closedValue) && lead.closedValue > 0))) {
+    if (isSchedulingStage(stage) || stage.type === 'LOST' || (stage.type === 'WON' && !(Number.isFinite(lead.closedValue) && lead.closedValue > 0))) {
       setTransition({ lead, stage }); return
     }
     setMoving(id)
@@ -66,7 +66,12 @@ export default function Pipeline({ leads, stages, onEdit, onAdd, onUpdate, canEd
     if (!transition || !canEdit) throw new Error('Sua permissão não permite alterar esta oportunidade.')
     const currentStage = configured.find(stage => stage.id === transition.stage.id && stage.active)
     if (!currentStage) throw new Error('Esta etapa foi desativada. Feche a janela e escolha outra etapa.')
-    await onUpdate(transitionLead(transition.lead, currentStage, input.closedValue, input.lossReason, input.lossComment))
+    if (currentStage.type !== transition.stage.type || isSchedulingStage(currentStage) !== isSchedulingStage(transition.stage)) {
+      throw new Error('Esta etapa foi alterada. Feche a janela e escolha a etapa novamente.')
+    }
+    const currentLead = leads.find(lead => lead.id === transition.lead.id)
+    if (!currentLead) throw new Error('Esta oportunidade não está mais disponível no seu acesso.')
+    await onUpdate(transitionLead(currentLead, currentStage, input.closedValue, input.lossReason, input.lossComment, input.callDate))
   }
   const nextAction = (lead: Lead) => {
     const activity = nextActivity(activities, lead.id)

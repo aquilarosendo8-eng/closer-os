@@ -69,7 +69,7 @@ async function mountAdministration(page: Page, mode: 'company' | 'platform' | 'c
     if (path === '/rest/v1/leads') { await json([]); return }
     if (path === '/rest/v1/rpc/list_members') { await json(body?.p_workspace_id === workspaceId ? structuredClone(state.members) : []); return }
     if (path === '/rest/v1/rpc/list_invitations') { await json(structuredClone(state.invitations.filter(invite => invite.workspace_id === body?.p_workspace_id))); return }
-    if (path === '/rest/v1/rpc/list_audit') { await json([]); return }
+    if (path === '/rest/v1/rpc/list_audit' || path === '/rest/v1/rpc/platform_list_administrative_audit') { await json([]); return }
     if (path === '/rest/v1/rpc/list_platform_workspaces') { await json([{ ...state.workspace, subscription: { ...state.subscription }, member_count: 3, admin_email: 'owner@example.com' }, ...state.additionalWorkspaces.map(workspace => ({ ...workspace, subscription: { ...state.subscription }, member_count: 0 }))]); return }
     if (path === '/rest/v1/rpc/create_workspace') {
       const id = '00000000-0000-4000-8000-000000000021'
@@ -139,6 +139,7 @@ test('company admin can save privacy and download company JSON; revoked invitati
 test('platform admin without company membership cannot reach company data or privacy controls', async ({ page }) => {
   const state = await mountAdministration(page, 'platform')
   await page.getByRole('row').filter({ hasText: 'Empresa Teste' }).getByRole('button', { name: 'Administrar', exact: false }).click()
+  await page.getByRole('tab', { name: 'Equipe', exact: true }).click()
   await expect(page.getByText('3 membros ativos', { exact: true })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Empresa', exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Exportar dados da empresa', exact: true })).toHaveCount(0)

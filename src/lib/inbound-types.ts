@@ -58,6 +58,7 @@ export interface InboundIntegrationLog {
 }
 export interface InboundLogPage { items: InboundIntegrationLog[]; nextCursor: string | null }
 export interface InboundWebhookResult { status: 'created' | 'duplicate'; leadId: string; requestId: string }
+export interface InboundAdministrativeOptions { stages: Array<{ id: string; name: string }>; owners: Array<{ userId: string; displayName: string }> }
 export interface InboundIntegrationService {
   list(workspaceId: string): Promise<InboundIntegration[]>
   listStages(workspaceId: string): Promise<Stage[]>
@@ -68,4 +69,5 @@ export interface InboundIntegrationService {
   rotate(workspaceId: string, integrationId: string): Promise<InboundCredentialResult>
   archive(workspaceId: string, integrationId: string): Promise<InboundIntegration>
   testWebhook(url: string, payload: unknown): Promise<InboundWebhookResult>
+  listAdministrativeOptions?(workspaceId: string): Promise<InboundAdministrativeOptions>
 }

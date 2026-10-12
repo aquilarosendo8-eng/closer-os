@@ -145,9 +145,23 @@ export const administrationService: AdministrationService = {
     const { data, error } = await requireSupabase().rpc('list_audit', { p_workspace_id: workspaceId }); assert(error)
     return (data || []).map((row: Row) => ({ id: row.id, action: row.action, createdAt: row.created_at, actorId: row.actor_id, details: row.details }))
   },
+  async listAdministrativeAudit(workspaceId): Promise<AuditEntry[]> {
+    const { data, error } = await requireSupabase().rpc('platform_list_administrative_audit', { p_workspace_id: workspaceId }); assert(error)
+    return (data || []).map((row: Row) => ({ id: row.id, action: row.action, createdAt: row.created_at, actorId: row.actor_id }))
+  },
   async listPlatformWorkspaces(): Promise<PlatformWorkspace[]> {
     const { data, error } = await requireSupabase().rpc('list_platform_workspaces'); assert(error)
-    return (data || []).map((row: Row) => ({ id: row.id, name: row.name, ownerId: row.owner_id, createdAt: row.created_at, subscription: subscription(row.subscription), memberCount: Number(row.member_count || 0), adminEmail: row.admin_email }))
+    return (data || []).map((row: Row) => ({ id: row.id, name: row.name, ownerId: row.owner_id, createdAt: row.created_at, subscription: subscription(row.subscription), memberCount: Number(row.member_count || 0), adminEmail: row.admin_email, businessContactEmail: row.business_contact_email || '' }))
+  },
+  async updateWorkspaceInformation(workspaceId, values) {
+    const name = values.name.trim(), email = values.businessContactEmail.trim().toLowerCase()
+    if (!name || name.length > 120 || /[\u0000-\u001f\u007f-\u009f]/u.test(name)) throw new Error('Informe um nome de empresa válido com até 120 caracteres.')
+    if (email && (email.length > 254 || !/^[^\s@<>"\\]+@[^\s@<>"\\]+\.[^\s@<>"\\]+$/.test(email))) throw new Error('Informe um e-mail de contato comercial válido.')
+    const { error } = await requireSupabase().rpc('platform_update_workspace_information', { p_workspace_id: workspaceId, p_name: name, p_business_contact_email: email }); assert(error)
+  },
+  async deletePlatformWorkspace(workspaceId, values) {
+    if (!values.irreversibleConfirmed || !values.authorizationConfirmed || values.reason.trim().length < 10 || values.reason.trim().length > 500 || /[\u0000-\u001f\u007f-\u009f]/u.test(values.reason)) throw new Error('Confirme a autorização e a exclusão permanente e informe um motivo de 10 a 500 caracteres.')
+    const { error } = await requireSupabase().rpc('platform_delete_workspace', { p_workspace_id: workspaceId, p_confirmation: values.confirmation, p_irreversible_confirmed: values.irreversibleConfirmed, p_authorization_confirmed: values.authorizationConfirmed, p_reason: values.reason.trim() }); assert(error)
   },
   async createWorkspace(input) {
     const { data, error } = await requireSupabase().rpc('create_workspace', { p_name: input.name.trim(), p_owner_name: input.ownerName?.trim() || null }); assert(error)

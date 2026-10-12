@@ -19,7 +19,7 @@ O [registro da implantação](docs/IMPLANTACAO.md) reúne a versão publicada, a
 - **Calls e performance:** nota de 0 a 10, erros recorrentes, dor, urgência, capacidade financeira, decisor, objeções e evolução semanal. A leitura assistida de resumos usa regras locais e sugestões editáveis; não chama um provedor de IA.
 - **Contas privadas:** Supabase Auth, confirmação de e-mail, criação/alteração/recuperação de senha e saída. O CRM exige associação autorizada à empresa, pelo cadastro próprio ou aceite de convite.
 - **Empresas e equipe:** isolamento no PostgreSQL por RLS, quatro papéis, convites com nome/e-mail/papel, envio e reenvio por e-mail, cópia para WhatsApp, estados de ativação e limites de assentos. Contas novas ativam o acesso; contas existentes usam sua própria senha no link manual. A credencial administrativa permanece no servidor.
-- **Administração da plataforma:** criação de clientes, planos individual/equipe, períodos de teste e controle manual de assinaturas. O papel da plataforma não concede acesso aos leads de um cliente.
+- **Administração Master:** informações institucionais, contato comercial, equipe, convites, planos, integrações, auditoria administrativa, suspensão e exclusão protegida de empresas, sem exigir membership. O papel da plataforma não concede acesso aos dados comerciais dos clientes. Consulte [Administração Master](docs/ADMINISTRACAO-MASTER.md).
 - **Dados:** CSV, backup JSON, importação sem sobrescrever IDs existentes e migração explícita dos leads pessoais do navegador. O administrador da empresa dispõe de portabilidade, política de retenção, transferência de responsabilidade e exclusão com confirmação.
 
 Receita usa a data de fechamento; show rate exclui calls pendentes; close rate divide vendas fechadas por comparecimentos. A comissão é uma projeção gerencial, não um pagamento conciliado. A central de ajuda descreve os denominadores.
@@ -62,7 +62,9 @@ Edição de nomes: cada pessoa altera o próprio nome em **Minha conta**; o admi
 
 Consulte [Oportunidades 360°, atividades e timeline](docs/OPORTUNIDADES-E-ATIVIDADES.md) para o fluxo de follow-ups, próxima ação, histórico automático e suas regras de acesso.
 
-Entrada automática de leads: [Integrações de formulários e webhooks](docs/INTEGRACOES-FORMULARIOS.md). A validação integrada e a publicação desta nova feature estão pendentes.
+Entrada automática de leads: [Integrações de formulários e webhooks](docs/INTEGRACOES-FORMULARIOS.md). A recepção existente é preservada na administração Master.
+
+Mover para **Agendado** ou **Call agendada** solicita data e horário futuros e atualiza **Calls → Próximas** pela mesma gravação. Consulte [Agendamento de calls](docs/AGENDAMENTO-CALLS.md).
 
 ## Validação
 
@@ -74,7 +76,7 @@ npm run test:saas
 npm run test:db
 ```
 
-Os testes cobrem métricas/validação, demonstração, autenticação, administração e isolamento no banco. `npm test` reúne **109 testes unitários**, incluindo **69 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API para verificar autenticação/administração, envio de convites e tratamento de falhas. `test:db` executa as migrations e **233 verificações reais** em um banco PostgreSQL isolado, incluindo concorrência por assentos, aceite e criação da própria empresa. Esses comandos não usam o projeto Supabase de produção.
+Os testes cobrem métricas, demonstração, autenticação, administração, integrações, oportunidades e isolamento no banco. `npm test` reúne **387 testes unitários**, incluindo **69 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API. `test:db` executa as nove migrations e **1.187 verificações reais**, com **14 cenários de concorrência**, em PostgreSQL isolado. Esses comandos não usam o projeto Supabase de produção. As configurações adicionais de navegador e a validação desta entrega estão detalhadas em [Administração Master](docs/ADMINISTRACAO-MASTER.md).
 
 No Supabase conectado, `scripts/test-live.mjs` foi executado com **59 verificações reais de Auth/REST/RLS**: login, convites, papéis, isolamento entre empresas, persistência, distribuição de leads, suspensão e desativação. As contas, empresas e demais fixtures temporárias foram removidas ao concluir. Essa verificação exige credenciais protegidas e autorização para criar fixtures; não faz parte automática da suíte local. Ela não testa entrega de e-mails nem restauração de backups.
 

@@ -19,7 +19,9 @@ if ! docker inspect "$TASK_DB_CONTAINER" >/dev/null 2>&1; then
   docker run -d --name "$TASK_DB_CONTAINER" -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17-alpine >/dev/null
   TASK_CREATED_CONTAINER=true
   for attempt in $(seq 1 30); do
-    if docker exec "$TASK_DB_CONTAINER" pg_isready -U postgres >/dev/null 2>&1; then break; fi
+    # The image uses a socket-only temporary server during initialization. Wait
+    # for its final TCP listener, rather than racing createdb against that restart.
+    if docker exec "$TASK_DB_CONTAINER" pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
     sleep 1
   done
 fi
@@ -46,7 +48,7 @@ if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
 psql_local -Atc "insert into test.results select label from migration_test.results;" >/dev/null
-for task_assertions in self-service invitation-details pipeline-call-reviews account-names lead-activities inbound-integrations; do
+for task_assertions in self-service invitation-details pipeline-call-reviews account-names lead-activities inbound-integrations platform-company-administration call-scheduling; do
   if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
     cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
   fi
@@ -335,4 +337,38 @@ SQL
 inbound_wait_both 'renewed quota versus cleanup'
 psql_local -Atc "select test.ok((select hits=78 and updated_at>clock_timestamp()-interval '1 minute' from private.inbound_rate_limits where bucket_key='integration:$TASK_INBOUND_INT:day'),'quota cleanup preserves concurrently renewed bucket');" >/dev/null
 echo 'Concurrent inbound-quota cleanup test passed.'
+
+# Master deletion serializes on the existing workspace row. A second irreversible
+# request must fail after the first commits, without duplicate deletion receipts.
+TASK_MASTER_DELETE_WS="$(psql_local -Atc "select test.value('master_delete_race')")"
+(
+  psql_local -At <<SQL
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000120',true);
+select public.platform_delete_workspace('$TASK_MASTER_DELETE_WS','Empresa Master concorrente',true,true,'Autorização para teste concorrente local');
+select pg_advisory_xact_lock(637186);
+select pg_sleep(1);
+commit;
+SQL
+) > "$TASK_LOG_DIR/master-delete-a.log" 2>&1 & TASK_FIRST_PID=$!
+inbound_wait_marker 637186
+(
+  psql_local -At <<SQL
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000120',true);
+select public.platform_delete_workspace('$TASK_MASTER_DELETE_WS','Empresa Master concorrente',true,true,'Autorização para teste concorrente local');
+commit;
+SQL
+) > "$TASK_LOG_DIR/master-delete-b.log" 2>&1 & TASK_SECOND_PID=$!
+TASK_FIRST_STATUS=0; wait "$TASK_FIRST_PID" || TASK_FIRST_STATUS=$?
+TASK_SECOND_STATUS=0; wait "$TASK_SECOND_PID" || TASK_SECOND_STATUS=$?
+if [ "$TASK_FIRST_STATUS" -ne 0 ] || [ "$TASK_SECOND_STATUS" -eq 0 ]; then
+  cat "$TASK_LOG_DIR/master-delete-a.log" "$TASK_LOG_DIR/master-delete-b.log" >&2; exit 1
+fi
+if ! rg -q 'Empresa não encontrada' "$TASK_LOG_DIR/master-delete-b.log"; then cat "$TASK_LOG_DIR/master-delete-b.log" >&2; exit 1; fi
+psql_local -Atc "select test.ok((select count(*)=1 from private.workspace_deletion_receipts where workspace_id='$TASK_MASTER_DELETE_WS'),'master: concurrent deletions preserve one independent receipt');
+select test.ok(not exists(select 1 from public.workspaces where id='$TASK_MASTER_DELETE_WS'),'master: concurrent deletion leaves no half-deleted workspace');" >/dev/null
+echo 'Concurrent Master workspace-deletion test passed.'
 psql_local -Atc "select 'Total database assertions: ' || count(*) from test.results"

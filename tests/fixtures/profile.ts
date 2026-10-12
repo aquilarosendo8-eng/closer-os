@@ -91,7 +91,7 @@ export async function mountProfile(page: Page, role: ProfileRole = 'admin', opti
     if (path === '/rest/v1/rpc/list_platform_workspaces') { await json([profileWorkspaceA, profileWorkspaceB].map(id => ({ ...workspace(id), subscription: subscription(id), member_count: 4, admin_email: profileEmail('admin') }))); return }
     const workspaceId = String(body?.p_workspace_id || url.searchParams.get('workspace_id')?.replace(/^eq\./, '') || '')
     if (path === '/rest/v1/rpc/list_members') { await json(Object.entries(profileUserIds).filter(([memberRole]) => memberRole !== 'platform').map(([memberRole, memberId]) => ({ user_id: memberId, email: profileEmail(memberRole as ProfileRole), display_name: effectiveProfileName(state, workspaceId, memberId), role: memberRole, is_active: true }))); return }
-    if (path === '/rest/v1/rpc/list_invitations' || path === '/rest/v1/rpc/list_audit' || path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
+    if (path === '/rest/v1/rpc/list_invitations' || path === '/rest/v1/rpc/list_audit' || path === '/rest/v1/rpc/platform_list_administrative_audit' || path === '/rest/v1/rpc/list_call_reviews') { await json([]); return }
     if (path === '/rest/v1/rpc/list_pipeline_stages') { await json(defaultStageRows(workspaceId)); return }
     if (path === '/rest/v1/rpc/list_lead_activities') { await json({ items: [], next_offset: null }); return }
     if (path === '/rest/v1/rpc/list_lead_events') { await json({ items: [], next_cursor: null }); return }

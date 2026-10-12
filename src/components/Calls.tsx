@@ -3,6 +3,7 @@ import { ArrowUpRight, CalendarDays, Check, CheckCheck, ChevronRight, ClipboardL
 import type { Attendance, Lead, LeadLeadershipReview, LeadershipReviewInput } from '../types'
 import type { WorkspaceRole } from '../lib/access-types'
 import { isWon } from '../lib/pipeline'
+import { isUpcomingCall } from '../lib/call-scheduling'
 import { normalizeRecordingUrl, validLeadershipReview, validRecordingUrl, validReviewInput } from '../lib/validation'
 import './calls-performance.css'
 import './calls-features.css'
@@ -80,6 +81,7 @@ export function Calls({ leads, onEdit, onUpdate, canEdit = true, role, userId, l
   const [reviewNotice, setReviewNotice] = useState('')
   const [feedback, setFeedback] = useState('')
   const [leadershipScore, setLeadershipScore] = useState('')
+  const [now, setNow] = useState(Date.now)
   const dialogRef = useRef<HTMLElement>(null)
   const recordingRef = useRef<HTMLInputElement>(null)
   const leadershipAllowed = (role === 'admin' || role === 'manager') && canReview !== false && !!onReview
@@ -93,6 +95,12 @@ export function Calls({ leads, onEdit, onUpdate, canEdit = true, role, userId, l
   const isReviewed = (lead: Lead) => validLeadershipReview(lead.leadershipReview)
   const recordingLink = (lead: Lead) => lead.recordingUrl?.trim() && validRecordingUrl(lead.recordingUrl.trim()) ? lead.recordingUrl.trim() : ''
   const closeReview = () => { if (!busy) setDraft(null) }
+  useEffect(() => {
+    const tick = () => setNow(Date.now())
+    const timer = window.setInterval(tick, 30000)
+    window.addEventListener('focus', tick)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', tick) }
+  }, [])
   useEffect(() => {
     if (!draft) return
     const previous = document.activeElement as HTMLElement | null
@@ -117,12 +125,13 @@ export function Calls({ leads, onEdit, onUpdate, canEdit = true, role, userId, l
   const calls = useMemo(() => leads.filter(lead => lead.callDate || lead.attendance !== 'Pendente' || lead.callScore !== null), [leads])
   const completed = calls.filter(lead => lead.attendance === 'Compareceu')
   const scored = completed.filter(lead => lead.callScore !== null)
-  const upcoming = calls.filter(lead => lead.attendance === 'Pendente' && dateValue(lead.callDate) >= Date.now())
+  const currentTime = Math.max(now, Date.now())
+  const upcoming = calls.filter(lead => isUpcomingCall(lead, currentTime))
   const average = scored.length ? (scored.reduce((sum, lead) => sum + (lead.callScore ?? 0), 0) / scored.length).toFixed(1).replace('.', ',') : '—'
   const visibleCalls = calls.filter(lead => {
     const matches = normalize(`${lead.name} ${lead.company} ${lead.objection} ${lead.source}`).includes(normalize(query.trim()))
     if (!matches || reviewFilter === 'pending' && isReviewed(lead) || reviewFilter === 'reviewed' && !isReviewed(lead)) return false
-    if (tab === 'upcoming') return lead.attendance === 'Pendente' && dateValue(lead.callDate) >= Date.now()
+    if (tab === 'upcoming') return isUpcomingCall(lead, currentTime)
     if (tab === 'completed') return lead.attendance !== 'Pendente'
     return true
   }).sort((a, b) => tab === 'upcoming' ? (dateValue(a.callDate) || 0) - (dateValue(b.callDate) || 0) : (dateValue(b.callDate) || 0) - (dateValue(a.callDate) || 0))

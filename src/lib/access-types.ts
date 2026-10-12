@@ -62,7 +62,11 @@ export interface PlatformWorkspace extends Workspace {
   subscription: Subscription
   memberCount: number
   adminEmail?: string
+  businessContactEmail?: string
 }
+
+export interface WorkspaceInformationUpdate { name: string; businessContactEmail: string }
+export interface PlatformWorkspaceDeletion { confirmation: string; irreversibleConfirmed: boolean; authorizationConfirmed: boolean; reason: string }
 
 export interface MemberUpdate {
   role?: WorkspaceRole
@@ -92,7 +96,10 @@ export interface AdministrationService {
   createManualInvitation(workspaceId: string, input: InvitationInput): Promise<ManualInvitationResult>
   revokeInvitation(workspaceId: string, invitationId: string): Promise<void>
   listAudit(workspaceId: string): Promise<AuditEntry[]>
+  listAdministrativeAudit(workspaceId: string): Promise<AuditEntry[]>
   listPlatformWorkspaces(): Promise<PlatformWorkspace[]>
+  updateWorkspaceInformation(workspaceId: string, values: WorkspaceInformationUpdate): Promise<void>
+  deletePlatformWorkspace(workspaceId: string, values: PlatformWorkspaceDeletion): Promise<void>
   createWorkspace(input: { name: string; ownerEmail: string; ownerName?: string }): Promise<{ id: string; invitationUrl: string; emailSent: true }>
   updateSubscription(workspaceId: string, changes: SubscriptionUpdate): Promise<void>
   getWorkspacePrivacy(workspaceId: string): Promise<WorkspacePrivacy>

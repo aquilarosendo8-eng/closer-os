@@ -1,0 +1,30 @@
+.crm-visual .ad-master-metadata {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+}
+.crm-visual .ad-master-metadata > div { display: grid; align-content: start; gap: 7px; min-width: 0; }
+.crm-visual .ad-master-metadata span { color: var(--color-text-secondary); font-size: var(--font-size-secondary, 13px); }
+.crm-visual .ad-master-metadata strong, .crm-visual .ad-master-metadata code { color: var(--color-text-primary); font-size: var(--font-size-body, 14px); overflow-wrap: anywhere; }
+.crm-visual .ad-master-workspace-id { display: inline-block; color: var(--color-text-secondary); font-size: var(--font-size-secondary, 13px); overflow-wrap: anywhere; }
+.crm-visual .ad-master-metadata + .ad-company-form { padding-top: 16px; }
+.crm-visual .ad-master-metadata + .ad-company-form > .button { margin-top: 16px; }
+.crm-visual .ad-master-delete-fields { display: grid; gap: 18px; padding: 0 24px 24px; }
+.crm-visual .ad-master-delete-fields > label { display: grid; gap: 8px; color: var(--color-text-primary); font-size: var(--font-size-body, 14px); }
+.crm-visual .ad-master-delete-fields textarea {
+  width: 100%; min-height: 88px; resize: vertical; border: 1px solid var(--color-border);
+  border-radius: 8px; padding: 10px 12px; background: var(--color-surface); color: var(--color-text-primary); font: inherit;
+}
+.crm-visual .ad-master-delete-fields textarea:focus { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.crm-visual .ad-master-delete-fields small { color: var(--color-text-secondary); font-size: var(--font-size-secondary, 13px); line-height: 1.55; }
+.crm-visual .ad-master-delete-fields > .ad-master-checkbox { display: flex; gap: 10px; align-items: flex-start; line-height: 1.55; }
+.crm-visual .ad-master-checkbox input { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 3px; accent-color: var(--color-primary); }
+.crm-visual .ad-master-danger .ad-company-body p { line-height: 1.7; }
+@media (max-width: 760px) {
+  .crm-visual .ad-master-metadata { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px; gap: 20px 14px; }
+  .crm-visual .ad-master-delete-fields { padding: 0 18px 20px; }
+  .crm-visual .ad-master-metadata > div:first-child { grid-column: 1 / -1; }
+}
