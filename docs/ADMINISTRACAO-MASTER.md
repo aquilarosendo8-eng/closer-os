@@ -63,7 +63,19 @@ Os testes de navegador abaixo utilizam respostas de Auth/REST simuladas para ver
 
 Total: **213 casos de interface**, com temas claro/escuro e telas mobile/desktop. Falhas transitórias de renderização durante alterações e execução concorrente foram reexecutadas sem afrouxar as verificações. Há 28 capturas Master com dados fictícios, incluindo Informações, Equipe, Plano, Integrações, Auditoria, Zona de perigo e o modal de exclusão em 1440 e 390 px.
 
-A conferência do deploy e os testes reais com fixtures temporárias em produção serão registrados após a publicação. O inventário anterior à implantação contém 547 registros em 18 tabelas; o verificador protegido compara cada registro original, desconsiderando somente o novo campo institucional.
+## Produção verificada
+
+- Commit funcional: `437dd208214eb0ea48f18da37a38046e0659f491`.
+- Deployment Vercel `dpl_3nEc28uapVAgSY4twsUJRqoXE1LD`: **READY**, associado ao endereço canônico `https://closer-os-rho-three.vercel.app/`.
+- O build nativo instalou somente a migration 009 em transação, conferiu as nove versões/checksums e as autorizações das 18 tabelas públicas. SHA256 da 009: `b346be11bc35dac1e3d75c7066d7190afe8fea3c4fa6480cd40c78a91e8210b8`.
+- HTTPS retornou 200; os quatro assets públicos carregaram. Nenhuma credencial privilegiada foi encontrada nesses assets. Os três endpoints existentes conservaram o bloqueio de GET com 405.
+- **85 verificações reais de Auth/REST/RLS e interface passaram**, sem respostas simuladas, erros de interface ou requisições de e-mail. Foram usados quatro usuários confirmados descartáveis e duas empresas temporárias; o Master de teste não recebeu membership.
+- Validados: contato institucional e proteções de equipe/proprietário; aceite, reemissão e revogação de convite pelo banco; operações das integrações, webhook público e deduplicação; bloqueios de leitura/escrita/exportação/importação; logs/auditoria filtrados; suspensão e retomada; arraste/seletor, cancelamento, data passada, preenchimento inicial, duas confirmações gerando um único PATCH, horário local, Calls → Próximas e persistência após reload; exclusão concorrente e preservação de Auth compartilhado.
+- O fluxo existente de exclusão pelo administrador da própria empresa também passou. A entrega SMTP não foi retestada: nenhum e-mail foi enviado nesta verificação, e o serviço existente não foi modificado.
+- A limpeza confirmou a remoção dos quatro usuários Auth, da promoção Master temporária, das duas empresas e de seus registros dependentes. O recibo administrativo mínimo de uma exclusão foi mantido intencionalmente fora da cascata.
+- O inventário protegido confirmou que os **547 registros originais nas 18 tabelas permanecem intactos**, sem resíduos de fixtures nessas tabelas. A comparação considera todos os campos originais, desconsiderando somente o novo campo institucional.
+
+Não há configuração manual adicional no Supabase ou na Vercel para esta entrega. As limitações de classificação de empresas de teste e declaração de autorização estão descritas acima.
 
 ## Arquivos desta entrega
 
