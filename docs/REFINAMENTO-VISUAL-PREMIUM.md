@@ -52,7 +52,9 @@ Build e **343 testes de código passaram**. O aviso existente de bundle acima de
 
 Os testes conferiram callbacks e fluxos existentes, permissões na interface, foco, modais, contraste, responsividade, leitura de textos extensos e ausência de gravações durante a navegação visual. Nenhuma regressão foi identificada nas suites finais. A revisão da diff confirmou que API, schema, RLS, Auth, métricas, integração, parser, dependências, cores e imports do design system permaneceram inalterados.
 
-A publicação e a conferência de assets/dados de produção serão realizadas depois deste registro de validação local, sem adicionar fixtures ou enviar e-mails em produção.
+A implementação foi publicada no commit `3a6f837497f7f507d2bf53b36431476cb1e12062`, deploy Vercel `dpl_4ozWrtpsE6Xx9WAcLp1RueZ5Rj1u`, **READY**, no domínio https://closer-os-rho-three.vercel.app/. O builder conferiu oito versões/checksums, aplicou **zero migrações** e confirmou as 18 tabelas públicas com RLS.
+
+HTML e assets publicados foram conferidos, incluindo os tokens privados de tipografia/toque e a apresentação de qualificação. Nenhuma credencial administrativa foi encontrada nos assets públicos. As três APIs existentes verificadas conservaram o bloqueio de GET. A comparação por contagem e hash preservou **535 registros nas 16 tabelas anteriores**. Nenhuma fixture ou e-mail foi criado/enviado em produção nesta tarefa.
 
 ## Limites
 
