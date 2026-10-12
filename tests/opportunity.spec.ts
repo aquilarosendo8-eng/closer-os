@@ -5,6 +5,29 @@ const reads = (state: OpportunityState, name: string) => state.requests.filter(r
 const writes = (state: OpportunityState) => state.requests.filter(request => request.path.endsWith('/rpc/save_activity') || request.path.endsWith('/rpc/set_activity_status') || request.path === '/rest/v1/leads' && request.method !== 'GET')
 const revenue = (page: Page) => page.locator('.stat-card').filter({ has: page.getByText('Faturamento', { exact: true }) }).locator('.stat-value')
 function clean(state: OpportunityState) { expect(state.unexpected).toEqual([]); expect(state.errors).toEqual([]) }
+for (const theme of ['light', 'dark'] as const) for (const width of [1366, 390]) {
+  test(`qualification keeps notes intact and presents a readable ${theme} layout at ${width}px`, async ({ page }) => {
+    const state = createOpportunityState()
+    const notes = 'Faturamento mensal: R$ 300 mil\nSobre a empresa: Operação nacional de vendas consultivas.\nInstagram: @empresa_teste\nFaixa de investimento: R$ 15 a 30 mil\nInvestimento mínimo: R$ 15 mil\n\nRetomar com o decisor na segunda-feira.\nCampo extra: conteúdo preservado'
+    const lead = state.leads.find(row => row.id === opportunityLeadIds.ana)!
+    lead.data.notes = notes
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 })
+    await mountOpportunity(page, 'viewer', { state, theme })
+    const dialog = await openOpportunity(page)
+    const qualification = dialog.getByRole('region', { name: 'Qualificação do lead', exact: true })
+    await expect(qualification).toBeVisible()
+    await expect(qualification.locator('dt')).toHaveText(['Faturamento mensal', 'Instagram', 'Faixa de investimento', 'Investimento mínimo', 'Sobre a empresa'])
+    await expect(qualification.getByRole('link', { name: '@empresa_teste' })).toHaveAttribute('href', 'https://www.instagram.com/empresa_teste/')
+    await expect(dialog.getByRole('region', { name: 'Observações gerais', exact: true }).locator(':scope > .l360-note')).toHaveText('Retomar com o decisor na segunda-feira.\nCampo extra: conteúdo preservado')
+    await dialog.getByText('Ver texto completo', { exact: true }).click()
+    await expect(dialog.locator('.l360-original-notes .l360-note')).toHaveText(notes)
+    await noOverflow(page, dialog)
+    expect(lead.data.notes).toBe(notes); expect(writes(state)).toHaveLength(0)
+    await qualification.scrollIntoViewIfNeeded()
+    await page.screenshot({ path: `/workspace/closer-os-artifacts/qualification-${theme}-${width}.png` })
+    clean(state)
+  })
+}
 async function tab(dialog: Locator, name: string) { await dialog.getByRole('tab', { name: new RegExp(`^${name}(?:\\s*\\d+)?$`) }).click() }
 async function newActivity(dialog: Locator, page: Page) {
   await tab(dialog, 'Atividades')
