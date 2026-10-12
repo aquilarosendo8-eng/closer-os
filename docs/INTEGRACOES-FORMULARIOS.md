@@ -1,6 +1,6 @@
 # Integrações — Formulários e entrada automática de leads
 
-**Estado: validação local concluída; publicação e confirmação em produção pendentes.** A implementação passou nas suites de código, banco e navegador. O fluxo real no domínio publicado será registrado abaixo após sua execução.
+**Estado: implementado, publicado e validado em produção em 12/10/2026.** Acesse https://closer-os-rho-three.vercel.app/ como administrador da sua empresa, em **Administração → Integrações**.
 
 A integração recebe preenchimentos de um formulário existente e cria leads comuns do HIGH CLOSER. O fluxo é: formulário → webhook POST → credencial → configuração da empresa → campos mapeados → duplicidade → lead, Timeline e log. Depois de recebido, o lead usa Pipeline, Lead 360, filtros e indicadores existentes, conforme suas regras e permissões.
 
@@ -195,7 +195,19 @@ Validação local executada em 12/10/2026:
 - `npm run test:db`: **1.000 assertions passaram** em PostgreSQL descartável, incluindo RLS, grants, mapping, normalização, defaults, quotas, logs, rejeição de identidades herdadas e 13 cenários de concorrência. As migrations 001–007 permaneceram intactas.
 - Provisionador: **36 verificações passaram** em PostgreSQL descartável, com a camada Auth simulada e bloqueada para qualquer destino externo, incluindo aplicação/repetição, checksums, builders simultâneos, ausência de configuração JWT protegida e privilégios das novas tabelas/RPCs.
 
-Ainda pendentes: aplicação da migration 008 e deploy em produção; fluxo autorizado Admin → criação → POST externo → lead no Pipeline/Lead 360/Timeline/log; repetição como duplicado; rotação/desativação; isolamento de duas empresas e ausência de credenciais administrativas nos assets publicados. A confirmação real será acrescentada após execução, sem confundi-la com as fixtures locais.
+Validação real em produção, sem mocks:
+
+- Commit funcional `7940f9369f59edc151d963d41ceba0ed1981bee3`, deploy Vercel `dpl_t5C7gH7EfwU2hHWCQCtBreeDUSYZ` **READY**, vinculado ao domínio de produção. A migration 008 foi instalada em transação; o builder conferiu oito versões/checksums e 18 tabelas públicas com RLS. SHA-256 da migration: `2dc412a2f9a3c7a74f4618fc1c2671c1ac1b7f66e93988d30d8628f1c550026b`.
+- **34 verificações passaram**, com quatro contas confirmadas temporárias, duas empresas isoladas, Supabase Auth/REST real, navegador e requisições HTTPS externas reais. Nenhum e-mail foi enviado.
+- Admin criou a integração pela interface e **Testar integração** realizou POST real, HTTP 201. POST externo JSON e formulário codificado criaram leads completos; empresa, etapa e responsável foram definidos pela configuração, mesmo com campos externos tentando substituí-los.
+- Conferidos Pipeline, Lead 360, fonte, responsável, etapa, valor do ticket, Timeline, logs e contadores; o closer acessou seu lead atribuído sem controles de integração. O faturamento permaneceu zero para as oportunidades ainda abertas, conforme a regra existente.
+- Telefone/e-mail normalizados impediram duplicados na mesma empresa; o mesmo contato foi criado independentemente em outra empresa. Dois POSTs simultâneos retornaram 201/200 com um único lead. RLS e ACL bloquearam consultas/administração de terceiros e execução da ingestão por clientes Auth.
+- Rejeições de campos, ticket e Unicode inválidos persistiram apenas metadados seguros. Credenciais antigas após rotação, desativadas e arquivadas foram bloqueadas. Tokens/hash não apareceram nas leituras administrativas, eventos ou logs; credenciais não foram persistidas no navegador.
+- Capturas e verificação de layout em 1366 e 390 pixels, nos temas claro e escuro; zero erros de execução no navegador. As capturas foram feitas somente depois de fechar os campos com credenciais.
+- A limpeza confirmou a remoção das quatro contas Auth, duas empresas e todos os registros associados de teste. A comparação por contagem e hash confirmou os **483 registros originais preservados nas 16 tabelas anteriores**, antes da migração, depois da instalação e após a limpeza.
+- HTML/assets de produção responderam corretamente, o bundle contém a nova interface e nenhum valor de credencial administrativa foi encontrado nos quatro assets públicos referenciados. As APIs existentes de convite preservaram o bloqueio de GET; o novo endpoint também exige POST.
+
+A primeira tentativa de instalação encontrou a restrição Supabase sobre parâmetros JWT protegidos e foi revertida pela transação, mantendo a versão anterior no ar. A correção foi validada antes da instalação definitiva; as migrations 001–007 não foram alteradas. Na primeira rodada do QA real, uma asserção exigia duas casas decimais, enquanto o formatter existente exibe `R$ 15.000,5` para 15000.5. Foi corrigido somente o helper de teste para comparar o valor com a apresentação existente; a aplicação e as métricas permaneceram intactas, e o reteste completo passou.
 
 ## Arquivos desta implementação
 
