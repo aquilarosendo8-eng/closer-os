@@ -253,7 +253,6 @@ end; $$;
 
 create function public.receive_inbound_lead(p_token_hash text,p_request_id uuid,p_payload jsonb,p_transport_error text default null) returns jsonb
 language plpgsql security definer set search_path = '' set timezone = 'UTC'
-  set "request.jwt.claim.sub" = '' set "request.jwt.claims" = '{"role":"service_role"}'
 as $$
 declare
   workspace uuid; integration_id uuid; item public.inbound_integrations; prior public.inbound_integration_logs;
@@ -262,6 +261,11 @@ declare
   normalized_email text; normalized_phone text; phone text; ticket numeric:=0; stage public.pipeline_stages;
   lead_id text; stamp text; lead_data jsonb;
 begin
+  -- The endpoint uses a fresh server-key client without a user session. Reject
+  -- inherited user identities; never rewrite Supabase's protected JWT settings.
+  -- Existing lead/audit/timeline triggers then naturally attribute automation
+  -- to NULL, while EXECUTE remains exclusively granted to service_role.
+  if auth.uid() is not null then return private.inbound_reply('rejected',p_request_id,401,'INVALID_CREDENTIALS'); end if;
   global_quota:=private.take_inbound_quota('global:minute',null,'minute',5000);
   if not (global_quota->>'allowed')::boolean then return private.inbound_reply('rejected',p_request_id,429,'RATE_LIMITED',null,(global_quota->>'retry_after')::integer); end if;
   if p_request_id is null or p_token_hash is null or p_token_hash !~ '^[a-f0-9]{64}$' then

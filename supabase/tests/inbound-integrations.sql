@@ -1,6 +1,11 @@
 \set ON_ERROR_STOP on
 -- Real PostgreSQL/RLS assertions in the disposable harness database only.
 -- Credentials below are synthetic fixtures and never reach an external service.
+-- Match Supabase's complete-claims fallback locally, then restore the unchanged
+-- legacy Auth stub at the end so other suites retain their original contract.
+create or replace function auth.uid() returns uuid language sql stable
+as $$ select coalesce(nullif(current_setting('request.jwt.claim.sub',true),''),
+  nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid; $$;
 select test.ok((select relrowsecurity from pg_class where oid='public.inbound_integrations'::regclass),'inbound: integrations enable RLS');
 select test.ok((select relrowsecurity from pg_class where oid='public.inbound_integration_logs'::regclass),'inbound: operational logs enable RLS');
 select test.ok((select relrowsecurity from pg_class where oid='private.inbound_rate_limits'::regclass),'inbound: persistent rate buckets enable RLS');
@@ -16,6 +21,9 @@ select test.ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p
   where n.nspname in ('public','private') and a.grantee=0 and a.privilege_type='EXECUTE'),'inbound: migration grants no implicit PUBLIC execution');
 select test.ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.prosecdef
   and not ('search_path=""'=any(p.proconfig))),'inbound: security definer functions retain empty search path');
+select test.ok(not exists(select 1 from pg_proc p cross join lateral unnest(p.proconfig) config(setting)
+  where p.oid='public.receive_inbound_lead(text,uuid,jsonb,text)'::regprocedure and setting like 'request.jwt.%'),
+  'inbound: service ingress never configures protected JWT GUCs');
 
 insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data)
 select ('00000000-0000-0000-0000-'||lpad(n::text,12,'0'))::uuid,'inbound-'||n||'@example.test',now(),jsonb_build_object('display_name','Pessoa inbound '||n)
@@ -132,10 +140,70 @@ reset role;
 
 insert into test.context values('inbound_unknown_hash',repeat('0',64)),('inbound_main_request',gen_random_uuid()::text);
 set role service_role;
--- Even an unexpected subject on a trusted service request must not impersonate
--- a closer. The RPC must restore both request settings after creating the lead.
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
+-- A trusted service request must have no end-user identity. Reject inherited
+-- subjects without attempting to write protected JWT settings or business data.
+insert into test.context values('inbound_guard_tables_snapshot',(select jsonb_build_object(
+  'leads',(select jsonb_agg(to_jsonb(l) order by workspace_id,id) from public.leads l),
+  'events',(select jsonb_agg(to_jsonb(e) order by id) from public.lead_events e),
+  'audit',(select jsonb_agg(to_jsonb(a) order by id) from public.audit_logs a),
+  'integrations',(select jsonb_agg(to_jsonb(i) order by id) from public.inbound_integrations i),
+  'logs',(select jsonb_agg(to_jsonb(l) order by id) from public.inbound_integration_logs l),
+  'rates',(select jsonb_agg(to_jsonb(r) order by bucket_key) from private.inbound_rate_limits r),
+  'profiles',(select jsonb_agg(to_jsonb(p) order by id) from public.profiles p),
+  'memberships',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id) from public.memberships m),
+  'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w),
+  'subscriptions',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.subscriptions s),
+  'settings',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.workspace_settings s),
+  'pipelines',(select jsonb_agg(to_jsonb(p) order by id) from public.pipelines p),
+  'stages',(select jsonb_agg(to_jsonb(s) order by id) from public.pipeline_stages s),
+  'reviews',(select jsonb_agg(to_jsonb(r) order by workspace_id,lead_id) from public.call_reviews r),
+  'activities',(select jsonb_agg(to_jsonb(a) order by id) from public.activities a),
+  'invitations',(select jsonb_agg(to_jsonb(i) order by id) from public.invitations i),
+  'acceptances',(select jsonb_agg(to_jsonb(p) order by id) from public.policy_acceptances p),
+  'bootstrap',(select jsonb_agg(to_jsonb(b) order by id) from public.bootstrap_settings b),
+  'platform_admins',(select jsonb_agg(to_jsonb(a) order by user_id) from public.platform_admins a))::text));
 select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000080',false);
 select set_config('request.jwt.claims','{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"preserve"}',false);
+insert into test.context values('inbound_guard_direct_result',public.receive_inbound_lead(test.value('inbound_hash_a'),gen_random_uuid(),'{"full_name":"Não impersonar usuário"}')::text);
+select test.ok(test.value('inbound_guard_direct_result')::jsonb->>'status'='rejected' and test.value('inbound_guard_direct_result')::jsonb->>'http_status'='401'
+  and not(test.value('inbound_guard_direct_result')::jsonb ? 'lead_id'),'inbound: service request with direct inherited subject is rejected before ingress');
+select test.ok(current_setting('request.jwt.claim.sub')='00000000-0000-0000-0000-000000000080'
+  and current_setting('request.jwt.claims')::jsonb='{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"preserve"}'::jsonb,
+  'inbound: rejected direct inherited subject leaves outer claims untouched');
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"claims-only"}',false);
+select test.ok(auth.uid()='00000000-0000-0000-0000-000000000080','inbound: fixture recognizes inherited subject solely from complete JWT claims');
+insert into test.context values('inbound_guard_claims_result',public.receive_inbound_lead(test.value('inbound_hash_a'),gen_random_uuid(),'{"full_name":"Não impersonar fallback"}')::text);
+select test.ok(test.value('inbound_guard_claims_result')::jsonb->>'status'='rejected' and test.value('inbound_guard_claims_result')::jsonb->>'http_status'='401'
+  and not(test.value('inbound_guard_claims_result')::jsonb ? 'lead_id'),'inbound: service request with claims-only inherited subject is rejected before ingress');
+select test.ok(current_setting('request.jwt.claim.sub')='' and current_setting('request.jwt.claims')::jsonb=
+  '{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"claims-only"}'::jsonb,
+  'inbound: rejected claims-only inherited subject leaves outer settings untouched');
+select test.ok((select jsonb_build_object(
+  'leads',(select jsonb_agg(to_jsonb(l) order by workspace_id,id) from public.leads l),
+  'events',(select jsonb_agg(to_jsonb(e) order by id) from public.lead_events e),
+  'audit',(select jsonb_agg(to_jsonb(a) order by id) from public.audit_logs a),
+  'integrations',(select jsonb_agg(to_jsonb(i) order by id) from public.inbound_integrations i),
+  'logs',(select jsonb_agg(to_jsonb(l) order by id) from public.inbound_integration_logs l),
+  'rates',(select jsonb_agg(to_jsonb(r) order by bucket_key) from private.inbound_rate_limits r),
+  'profiles',(select jsonb_agg(to_jsonb(p) order by id) from public.profiles p),
+  'memberships',(select jsonb_agg(to_jsonb(m) order by workspace_id,user_id) from public.memberships m),
+  'workspaces',(select jsonb_agg(to_jsonb(w) order by id) from public.workspaces w),
+  'subscriptions',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.subscriptions s),
+  'settings',(select jsonb_agg(to_jsonb(s) order by workspace_id) from public.workspace_settings s),
+  'pipelines',(select jsonb_agg(to_jsonb(p) order by id) from public.pipelines p),
+  'stages',(select jsonb_agg(to_jsonb(s) order by id) from public.pipeline_stages s),
+  'reviews',(select jsonb_agg(to_jsonb(r) order by workspace_id,lead_id) from public.call_reviews r),
+  'activities',(select jsonb_agg(to_jsonb(a) order by id) from public.activities a),
+  'invitations',(select jsonb_agg(to_jsonb(i) order by id) from public.invitations i),
+  'acceptances',(select jsonb_agg(to_jsonb(p) order by id) from public.policy_acceptances p),
+  'bootstrap',(select jsonb_agg(to_jsonb(b) order by id) from public.bootstrap_settings b),
+  'platform_admins',(select jsonb_agg(to_jsonb(a) order by user_id) from public.platform_admins a))=test.value('inbound_guard_tables_snapshot')::jsonb),
+  'inbound: both inherited-identity rejections preserve all business tables logs and quota rows exactly');
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 insert into test.context values('inbound_main_result',test.inbound('inbound_hash_a',jsonb_build_object(
   'full_name','  João Silva  ','email_address','  JOAO@EXAMPLE.TEST  ','whatsapp','+44 (20) 7946-0958','company_name','  Empresa XPTO  ',
   'amount','15000.50','message','Observação mapeada','extra_secret','UNMAPPED_SECRET_SHOULD_NOT_PERSIST',
@@ -145,8 +213,8 @@ insert into test.context values('inbound_lead_main',test.value('inbound_main_res
 select test.ok(test.value('inbound_main_result')::jsonb->>'status'='created' and test.value('inbound_main_result')::jsonb->>'http_status'='201','inbound: valid mapped request creates a real lead with HTTP 201 outcome');
 select test.ok(test.value('inbound_main_result')::jsonb->>'request_id'=test.value('inbound_main_request'),'inbound: receive outcome correlates the server request ID');
 select test.ok(test.value('inbound_lead_main') ~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$','inbound: lead ID is generated rather than taken from external payload');
-select test.ok(current_setting('request.jwt.claim.sub')='00000000-0000-0000-0000-000000000080','inbound: receive restores the original request subject');
-select test.ok(current_setting('request.jwt.claims')::jsonb='{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"preserve"}'::jsonb,'inbound: receive restores the original complete request claims');
+select test.ok(current_setting('request.jwt.claim.sub')='' and auth.uid() is null,'inbound: valid service ingress leaves caller subject empty');
+select test.ok(current_setting('request.jwt.claims')::jsonb='{"role":"service_role"}'::jsonb,'inbound: valid service ingress preserves role-only caller claims');
 select set_config('request.jwt.claim.sub','',false);
 select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok((select workspace_id=test.value('inbound_ws_a')::uuid and owner_id='00000000-0000-0000-0000-000000000081' and stage_id=test.value('inbound_stage_a')::uuid
@@ -230,6 +298,7 @@ select test.ok((select length(data->>'email')=5000 and length(data->>'phone')=50
   'inbound: identity indexes do not reject large legacy contact strings');
 set role service_role;
 select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 insert into test.context values('inbound_duplicate_email',test.inbound('inbound_hash_a','{"full_name":"Não sobrescrever nome","email_address":"  JOAO@EXAMPLE.TEST  ","amount":1,"message":"Não sobrescrever nota"}')::text);
 select test.ok(test.value('inbound_duplicate_email')::jsonb->>'status'='duplicate' and test.value('inbound_duplicate_email')::jsonb->>'http_status'='200'
   and test.value('inbound_duplicate_email')::jsonb->>'lead_id'=test.value('inbound_lead_main'),'inbound: normalized email returns the existing same-workspace lead');
@@ -308,6 +377,8 @@ select test.ok(test.value('inbound_literal_created')::jsonb->'integration'->>'ow
 reset role;
 insert into test.context values('inbound_literal_hash',encode(extensions.digest(test.value('inbound_literal_token'),'sha256'),'hex'));
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 insert into test.context values('inbound_literal_result',test.inbound('inbound_literal_hash','{"contact.name":"Nome literal","contact.email":"literal@example.test","contact":{"name":"Não resolver como caminho"}}')::text);
 select test.ok(test.value('inbound_literal_result')::jsonb->>'status'='created','inbound: mapping resolves literal dotted property names safely');
 select test.ok((select data->>'name'='Nome literal' and data->>'email'='literal@example.test' from public.leads where id=test.value('inbound_literal_result')::jsonb->>'lead_id'),
@@ -335,6 +406,8 @@ reset role;
 -- Runtime validation uses current stage/owner/subscription rather than creation-time data.
 update public.pipeline_stages set active=false where id=test.value('inbound_stage_a')::uuid;
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_hash_a','{"full_name":"Etapa desativada"}')->>'error_code'='STAGE_UNAVAILABLE','inbound: deactivated destination stage stops inbound creation');
 reset role;
 set role authenticated;
@@ -344,6 +417,8 @@ reset role;
 update public.pipeline_stages set active=true where id=test.value('inbound_stage_a')::uuid;
 update public.memberships set is_active=false where workspace_id=test.value('inbound_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000081';
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_hash_a','{"full_name":"Responsável desativado"}')->>'error_code'='OWNER_UNAVAILABLE','inbound: deactivated configured owner stops inbound creation');
 reset role;
 set role authenticated;
@@ -352,6 +427,8 @@ select test.denied(format('select public.set_inbound_integration_active(%L,%L,tr
 reset role;
 update public.memberships set is_active=true,role='viewer' where workspace_id=test.value('inbound_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000081';
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_hash_a','{"full_name":"Responsável sem edição"}')->>'error_code'='OWNER_UNAVAILABLE','inbound: demoted owner cannot receive automatically assigned leads');
 reset role;
 update public.memberships set role='closer' where workspace_id=test.value('inbound_ws_a')::uuid and user_id='00000000-0000-0000-0000-000000000081';
@@ -360,6 +437,8 @@ select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001'
 select public.admin_update_subscription(test.value('inbound_ws_a')::uuid,'team','suspended',10);
 reset role;
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 insert into test.context values('inbound_suspended_result',test.inbound('inbound_hash_a','{"full_name":"Workspace pausado"}')::text);
 select test.ok(test.value('inbound_suspended_result')::jsonb->>'status'='rejected' and test.value('inbound_suspended_result')::jsonb->>'error_code'='WORKSPACE_UNAVAILABLE'
   and test.value('inbound_suspended_result')::jsonb->>'http_status'='403','inbound: suspended workspace refuses ingestion despite a valid active credential');
@@ -384,6 +463,8 @@ reset role;
 insert into test.context values('inbound_removed_destination_hash',encode(extensions.digest(test.value('inbound_removed_destination_token'),'sha256'),'hex'));
 update public.pipeline_stages set type='WON' where id=test.value('inbound_temporary_stage')::uuid;
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_removed_destination_hash','{"name":"Não entrar em WON"}')->>'error_code'='STAGE_UNAVAILABLE','inbound: runtime rejects destination whose type changed to WON');
 reset role;
 delete from public.pipeline_stages where id=test.value('inbound_temporary_stage')::uuid;
@@ -440,6 +521,7 @@ insert into test.context values('inbound_rotated_hash',encode(extensions.digest(
   ('inbound_after_rotation',(select to_jsonb(i)::text from public.inbound_integrations i where id=test.value('inbound_int_a')::uuid));
 set role service_role;
 select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_hash_a','{"full_name":"Segredo antigo"}')->>'error_code'='INVALID_CREDENTIALS','inbound: old rotated credential immediately stops working');
 select test.ok(test.inbound('inbound_hash_a','{"full_name":"Replay antigo"}',null,test.value('inbound_main_request')::uuid)->>'http_status'='401',
   'inbound: replay cannot bypass credential rotation');
@@ -454,6 +536,8 @@ select test.ok(public.set_inbound_integration_active(test.value('inbound_ws_a'):
   'inbound: administrator disables integration');
 reset role;
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_rotated_hash','{"full_name":"Desativado"}')->>'error_code'='INVALID_CREDENTIALS','inbound: disabled integration is indistinguishable from invalid credentials');
 select test.ok(test.inbound('inbound_rotated_hash','{"full_name":"Replay desativado"}',null,test.value('inbound_main_request')::uuid)->>'http_status'='401',
   'inbound: replay cannot bypass integration disable');
@@ -479,6 +563,8 @@ select test.ok((select count(*)=test.value('inbound_before_archive_logs')::bigin
   'inbound: archive preserves existing operational logs');
 reset role;
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(test.inbound('inbound_hash_second','{"name":"Arquivado"}')->>'http_status'='401','inbound: archived credential cannot ingest');
 reset role;
 
@@ -492,6 +578,7 @@ reset role;
 insert into test.context values('inbound_quota_hash',encode(extensions.digest(test.value('inbound_quota_token'),'sha256'),'hex'));
 set role service_role;
 select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 do $$ declare item uuid:=test.value('inbound_quota_int')::uuid; result jsonb; epoch_seconds numeric; first_id uuid:=gen_random_uuid(); begin
   -- Avoid a test fixture crossing the minute boundary between its two calls.
   epoch_seconds:=extract(second from clock_timestamp());
@@ -563,16 +650,16 @@ insert into test.context values('inbound_before_failure_leads',(select count(*):
   ('inbound_before_failure_audit',(select count(*)::text from public.audit_logs where workspace_id=test.value('inbound_ws_a')::uuid)),
   ('inbound_failure_request',gen_random_uuid()::text);
 set role service_role;
-select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000080',false);
-select set_config('request.jwt.claims','{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"failure"}',false);
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 insert into test.context values('inbound_failure_result',test.inbound('inbound_rotated_hash','{"full_name":"Lead que deve reverter","email_address":"rolled-back@example.test"}',null,
   test.value('inbound_failure_request')::uuid)::text);
 select test.ok(test.value('inbound_failure_result')::jsonb->>'status'='error' and test.value('inbound_failure_result')::jsonb->>'http_status'='503'
   and test.value('inbound_failure_result')::jsonb->>'error_code'='SERVICE_UNAVAILABLE','inbound: internal database failure becomes a safe operational 503 outcome');
 select test.ok(test.value('inbound_failure_result') not like '%SENSITIVE_FIXTURE_DIAGNOSTIC_SHOULD_NOT_LEAK%','inbound: internal diagnostic never appears in webhook response');
-select test.ok(current_setting('request.jwt.claim.sub')='00000000-0000-0000-0000-000000000080'
-  and current_setting('request.jwt.claims')::jsonb='{"role":"service_role","sub":"00000000-0000-0000-0000-000000000080","fixture":"failure"}'::jsonb,
-  'inbound: failing ingress restores both original request claim settings');
+select test.ok(current_setting('request.jwt.claim.sub')='' and auth.uid() is null
+  and current_setting('request.jwt.claims')::jsonb='{"role":"service_role"}'::jsonb,
+  'inbound: failing ingress leaves role-only caller claims untouched');
 select set_config('request.jwt.claim.sub','',false);
 select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok((select count(*)=test.value('inbound_before_failure_leads')::bigint from public.leads where workspace_id=test.value('inbound_ws_a')::uuid),
@@ -599,6 +686,8 @@ update private.inbound_rate_limits set updated_at=clock_timestamp()-interval '3 
 insert into test.context values('inbound_before_retention_integration',(select to_jsonb(i)::text from public.inbound_integrations i where id=test.value('inbound_int_a')::uuid)),
   ('inbound_recent_quota',(select to_jsonb(r)::text from private.inbound_rate_limits r where bucket_key='integration:'||test.value('inbound_quota_int')||':minute'));
 set role service_role;
+select set_config('request.jwt.claim.sub','',false);
+select set_config('request.jwt.claims','{"role":"service_role"}',false);
 select test.ok(public.purge_inbound_integration_logs(1)=1,'inbound: retention removes at most the requested old log count');
 select test.ok((select count(*)=2 from public.inbound_integration_logs where id in (select value::bigint from jsonb_array_elements_text(test.value('inbound_old_log_ids')::jsonb))),
   'inbound: bounded retention leaves remaining expired logs for a later batch');
@@ -677,4 +766,6 @@ drop function test.inbound(text,jsonb,text,uuid);
 revoke usage on schema test from service_role;
 revoke select,insert,update on test.context from service_role;
 revoke insert on test.results from service_role;
+create or replace function auth.uid() returns uuid language sql stable
+as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid; $$;
 select 'Inbound integration assertions passed: '||count(*) from test.results;

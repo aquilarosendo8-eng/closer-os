@@ -173,6 +173,8 @@ Editar nome, origem, etapa, responsável ou mapping afeta os próximos recebimen
 
 `api/inbound-leads.mjs` valida transporte e credencial, calcula SHA-256 e chama uma única RPC `receive_inbound_lead` com cliente Supabase somente de servidor. Essa RPC, restrita a `service_role`, autentica a integração e executa cotas, configuração, mapping, deduplicação, lead, evento e log na mesma transação. Um erro de criação reverte o lead e seus eventos e registra um erro operacional seguro quando a transação permite.
 
+O cliente de recebimento é criado com a chave de servidor, sem herdar sessão de usuário. A RPC recusa uma identidade de usuário associada à chamada e não altera parâmetros JWT protegidos do Supabase. Os triggers existentes atribuem a criação automática ao sistema (`actor_id` e `created_by` nulos), preservando a autoria das operações humanas.
+
 A migration `202610120008_inbound_integrations.sql` adiciona `public.inbound_integrations`, `public.inbound_integration_logs` e contadores privados de cota. As duas tabelas públicas têm RLS e escritas por RPCs autorizadas. A configuração usa referências de empresa para etapa e responsável. O hash não é incluído nas leituras permitidas ao administrador; o token original não é persistido no banco, localStorage, sessionStorage ou metadados Auth. A interface o mantém temporariamente para copiar/testar na criação ou redefinição.
 
 Somente um **administrador ativo da própria empresa** administra integrações e consulta seus logs. Gestor, closer, visualizador e administrador da plataforma sem esse vínculo não recebem esse acesso. O papel da plataforma não libera leads ou payloads do cliente. A leitura dos leads e da Timeline mantém as políticas existentes.
@@ -190,7 +192,18 @@ Validação local executada em 12/10/2026:
 - `npm test`: **334 testes passaram**, incluindo 117 do endpoint, 21 do serviço de integrações e a apresentação do novo evento na Timeline.
 - `npm run build`: TypeScript e build de produção passaram. O aviso de tamanho do bundle não impede o build.
 - Playwright: **163 testes passaram** — integrações 17, SaaS/Admin 44, oportunidades 28, Pipeline/Calls 21, CRM 10, temas 15 e perfil 28. As fixtures de navegador simulam Supabase; o teste de integrações executa o handler real com a persistência simulada.
-- `npm run test:db`: **993 assertions passaram** em PostgreSQL descartável, incluindo RLS, grants, mapping, normalização, defaults, quotas, logs e 13 cenários de concorrência. As migrations 001–007 permaneceram intactas.
-- Provisionador: **35 verificações passaram** em PostgreSQL descartável, com a camada Auth simulada e bloqueada para qualquer destino externo, incluindo aplicação/repetição, checksums, builders simultâneos e privilégios das novas tabelas/RPCs.
+- `npm run test:db`: **1.000 assertions passaram** em PostgreSQL descartável, incluindo RLS, grants, mapping, normalização, defaults, quotas, logs, rejeição de identidades herdadas e 13 cenários de concorrência. As migrations 001–007 permaneceram intactas.
+- Provisionador: **36 verificações passaram** em PostgreSQL descartável, com a camada Auth simulada e bloqueada para qualquer destino externo, incluindo aplicação/repetição, checksums, builders simultâneos, ausência de configuração JWT protegida e privilégios das novas tabelas/RPCs.
 
 Ainda pendentes: aplicação da migration 008 e deploy em produção; fluxo autorizado Admin → criação → POST externo → lead no Pipeline/Lead 360/Timeline/log; repetição como duplicado; rotação/desativação; isolamento de duas empresas e ausência de credenciais administrativas nos assets publicados. A confirmação real será acrescentada após execução, sem confundi-la com as fixtures locais.
+
+## Arquivos desta implementação
+
+- Backend: `api/inbound-leads.mjs`.
+- Banco e instalação: `supabase/migrations/202610120008_inbound_integrations.sql`, `scripts/provision-supabase.mjs`.
+- Interface: `src/components/Administration.tsx`, `src/components/InboundIntegrations.tsx`, `src/components/inbound-integrations.css`.
+- Contratos, cliente autorizado e Timeline: `src/lib/inbound-types.ts`, `src/lib/inbound-integrations.ts`, `src/lib/opportunity.ts`.
+- Testes de código: `tests/inbound-leads-api.test.ts`, `tests/inbound-services.test.ts`, `tests/opportunity.test.ts`.
+- Testes de navegador: `playwright.inbound.config.ts`, `tests/fixtures/inbound.ts`, `tests/inbound.spec.ts`.
+- Testes de banco: `supabase/tests/inbound-integrations.sql`, `scripts/test-database.sh`. A nova suite contempla localmente as duas formas de claims usadas pelo Supabase e restaura o stub original ao terminar; não modifica o Auth de produção.
+- Documentação: `README.md`, `docs/INTEGRACOES-FORMULARIOS.md`.
