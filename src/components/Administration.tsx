@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertTriangle, ArrowLeft, Building2, Check, ChevronDown, Copy, CreditCard, Download, ExternalLink, History, Link2, LoaderCircle, LockKeyhole, Mail, MessageCircle, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserCheck, UserMinus, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Building2, Check, ChevronDown, Copy, CreditCard, Download, ExternalLink, History, Link2, LoaderCircle, LockKeyhole, Mail, MessageCircle, Pencil, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, UserCheck, UserMinus, Users, Webhook, X } from 'lucide-react'
 import type { AdministrationService, AuditEntry, Invitation, Membership, PlatformWorkspace, Subscription, SubscriptionPlan, SubscriptionStatus, WorkspaceAccess, WorkspacePrivacy, WorkspaceRole } from '../lib/access-types'
 import { updateMyDisplayName } from '../lib/access'
+import { inboundIntegrationService } from '../lib/inbound-integrations'
+import InboundIntegrations from './InboundIntegrations'
 import './administration.css'
 import './administration-names.css'
 
@@ -42,7 +44,7 @@ type NameEditor = { workspaceId: string; kind: 'workspace' } | { workspaceId: st
 
 export default function Administration({ access, accountDisplayName, isPlatformAdmin, service, onAccessChange }: AdministrationProps) {
   const platform = isPlatformAdmin ?? access?.isPlatformAdmin ?? false
-  const [tab, setTab] = useState<'clients' | 'team' | 'plan' | 'audit' | 'company'>(platform ? 'clients' : 'team')
+  const [tab, setTab] = useState<'clients' | 'team' | 'plan' | 'audit' | 'company' | 'integrations'>(platform ? 'clients' : 'team')
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(access?.workspace.id ?? '')
   const [clients, setClients] = useState<PlatformWorkspace[]>([])
   const [members, setMembers] = useState<Membership[]>([])
@@ -102,6 +104,9 @@ export default function Administration({ access, accountDisplayName, isPlatformA
   useEffect(() => {
     setNameEditor(null); setNameDraft(''); setNameError('')
   }, [selectedWorkspaceId, memberAdmin])
+  useEffect(() => {
+    if (!memberAdmin && tab === 'integrations') setTab('team')
+  }, [memberAdmin, tab])
   useEffect(() => {
     if (!platform) setSelectedWorkspaceId(access?.workspace.id ?? '')
   }, [access?.workspace.id, platform])
@@ -352,7 +357,8 @@ export default function Administration({ access, accountDisplayName, isPlatformA
 
   return <div className="ad-page">
     <div className="ad-context"><div className="ad-context-title"><span className="ad-context-icon">{platform ? <Building2 size={19}/> : <ShieldCheck size={19}/>}</span><div><strong>{tab === 'clients' ? 'Administração da plataforma' : workspace?.name ?? 'Selecione uma empresa'}</strong><small>{platform ? 'Gestão comercial e de acesso · sem acesso às conversas dos clientes' : 'Equipe, permissões e histórico da sua empresa'}</small></div></div>{platform && tab !== 'clients' && <button className="button button-secondary" onClick={() => { setTab('clients'); setGeneratedLink(null); setError('') }}><ArrowLeft size={14}/> Todos os clientes</button>}{!platform && subscription && <span className={`ad-status ad-status-${subscription.status}`}>{statuses[subscription.status]}</span>}</div>
-    <div className="ad-tabs" role="tablist" aria-label="Seções de administração">{platform && <button role="tab" aria-selected={tab === 'clients'} className={tab === 'clients' ? 'active' : ''} onClick={() => setTab('clients')}><Building2 size={15}/>Clientes</button>}{selectedWorkspaceId && <><button role="tab" aria-selected={tab === 'team'} className={tab === 'team' ? 'active' : ''} onClick={() => setTab('team')}><Users size={15}/>Equipe</button><button role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'active' : ''} onClick={() => setTab('plan')}><CreditCard size={15}/>Plano</button><button role="tab" aria-selected={tab === 'audit'} className={tab === 'audit' ? 'active' : ''} onClick={() => setTab('audit')}><History size={15}/>Auditoria</button>{memberAdmin && <button role="tab" aria-selected={tab === 'company'} className={tab === 'company' ? 'active' : ''} onClick={() => setTab('company')}><ShieldCheck size={15}/>Empresa</button>}</>}</div>
+    <div className="ad-tabs" role="tablist" aria-label="Seções de administração">{platform && <button role="tab" aria-selected={tab === 'clients'} className={tab === 'clients' ? 'active' : ''} onClick={() => setTab('clients')}><Building2 size={15}/>Clientes</button>}{selectedWorkspaceId && <><button role="tab" aria-selected={tab === 'team'} className={tab === 'team' ? 'active' : ''} onClick={() => setTab('team')}><Users size={15}/>Equipe</button><button role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'active' : ''} onClick={() => setTab('plan')}><CreditCard size={15}/>Plano</button><button role="tab" aria-selected={tab === 'audit'} className={tab === 'audit' ? 'active' : ''} onClick={() => setTab('audit')}><History size={15}/>Auditoria</button>{memberAdmin && <><button role="tab" aria-selected={tab === 'company'} className={tab === 'company' ? 'active' : ''} onClick={() => setTab('company')}><ShieldCheck size={15}/>Empresa</button><button role="tab" aria-selected={tab === 'integrations'} className={tab === 'integrations' ? 'active' : ''} onClick={() => setTab('integrations')}><Webhook size={15}/>Integrações</button></>}</>}</div>
+    {tab === 'integrations' && memberAdmin && access && <InboundIntegrations key={`${selectedWorkspaceId}:${access.membership.userId}`} workspaceId={selectedWorkspaceId} userId={access.membership.userId} members={members} service={inboundIntegrationService} onLeadCreated={onAccessChange}/>}
     {notice && <div className="ad-notice" role="status"><Check size={16}/>{notice}<button aria-label="Fechar mensagem" onClick={() => setNotice('')}><X size={14}/></button></div>}
     {error && <div className="ad-error" role="alert"><span>{error}</span><button onClick={() => selectedWorkspaceId ? void refreshTeam(selectedWorkspaceId) : void refreshClients()}><RefreshCw size={13}/>Tentar novamente</button></div>}
     {generatedLink && <section className="ad-link-card">

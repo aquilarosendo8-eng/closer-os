@@ -62,6 +62,8 @@ Edição de nomes: cada pessoa altera o próprio nome em **Minha conta**; o admi
 
 Consulte [Oportunidades 360°, atividades e timeline](docs/OPORTUNIDADES-E-ATIVIDADES.md) para o fluxo de follow-ups, próxima ação, histórico automático e suas regras de acesso.
 
+Entrada automática de leads: [Integrações de formulários e webhooks](docs/INTEGRACOES-FORMULARIOS.md). A validação integrada e a publicação desta nova feature estão pendentes.
+
 ## Validação
 
 ```bash

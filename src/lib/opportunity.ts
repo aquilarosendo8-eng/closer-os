@@ -56,6 +56,7 @@ export function eventPresentation(event: OpportunityEvent): { title: string; det
   const text = (key: string) => typeof m[key] === 'string' ? m[key] as string : ''
   const amount = (key: string) => typeof m[key] === 'number' ? money(m[key] as number) : ''
   const titles: Record<string, string> = {
+    'lead.inbound_received': text('integration_name') ? `Lead recebido automaticamente via ${text('integration_name')}` : 'Lead recebido automaticamente por integração',
     'lead.created': 'Oportunidade criada', 'lead.owner_changed': 'Responsável alterado', 'lead.stage_changed': 'Etapa atualizada',
     'lead.ticket_changed': 'Ticket atualizado', 'call.scheduled': 'Call agendada', 'call.recorded': 'Call registrada',
     'call.updated': 'Pós-call atualizado', 'call.recording_added': 'Gravação adicionada', 'call.reviewed': 'Revisão da liderança', 'call.snapshot': 'Call do cadastro anterior',
@@ -64,6 +65,7 @@ export function eventPresentation(event: OpportunityEvent): { title: string; det
     'lead.loss_reason_changed': 'Motivo de perda atualizado', 'lead.reopened': 'Oportunidade reaberta',
   }
   let detail = ''
+  if (event.eventType === 'lead.inbound_received') detail = text('source') ? `Origem: ${text('source')}` : ''
   if (event.eventType === 'lead.stage_changed') detail = [text('from_stage_name'), text('to_stage_name')].filter(Boolean).join(' → ')
   if (event.eventType === 'lead.owner_changed') detail = text('assigned_name') || text('to_owner_name')
   if (event.eventType === 'lead.ticket_changed') detail = [amount('previous_ticket') || amount('from_ticket'), amount('ticket') || amount('to_ticket')].filter(Boolean).join(' → ')

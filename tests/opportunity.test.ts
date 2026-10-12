@@ -43,6 +43,10 @@ describe('operational dates and overdue activities', () => {
 })
 
 describe('task form and readable commercial history', () => {
+  it('identifies an external intake using only its integration name and source', () => {
+    expect(eventPresentation(event('lead.inbound_received', { integration_name: 'Formulário principal', source: 'Landing Page', integration_id: 'internal-id', token: 'must-never-render', payload: { phone: 'private' } }))).toEqual({ title: 'Lead recebido automaticamente via Formulário principal', detail: 'Origem: Landing Page' })
+    expect(eventPresentation(event('lead.inbound_received')).title).toBe('Lead recebido automaticamente por integração')
+  })
   it('requires title, lead, assignee, known type and a finite zoned due date', () => {
     expect(validActivityInput(activity())).toBe(true)
     for(const patch of [{title:'  '},{title:'x'.repeat(181)},{title:'Título\nforjado'},{leadId:''},{assignedTo:''},{description:'x'.repeat(4001)},{dueAt:'2026-10-08T14:00:00'},{dueAt:'invalid'},{type:'automation'}]) expect(validActivityInput({...activity(),...patch} as ActivityInput)).toBe(false)
