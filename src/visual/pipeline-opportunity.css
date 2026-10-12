@@ -137,7 +137,7 @@
   transition: border-color var(--transition-fast, 140ms), background var(--transition-fast, 140ms);
 }
 .crm-visual .lead-card:hover {
-  border-color: var(--color-text-secondary);
+  border-color: var(--color-primary);
   box-shadow: none;
 }
 .crm-visual .lead-card:focus-within {
@@ -185,7 +185,7 @@
   clear: both;
   margin: var(--space-2, 8px) 0 var(--space-2, 8px);
   color: var(--color-text-primary);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 650;
   line-height: 1.45;
   letter-spacing: -.02em;
@@ -279,7 +279,7 @@
   line-height: 1.4;
 }
 .crm-visual .l360-heading h2 {
-  font-size: var(--font-size-page, 22px);
+  font-size: 24px;
   line-height: 1.3;
   letter-spacing: -.03em;
 }
@@ -337,7 +337,7 @@
 .crm-visual .l360-tab-count { font-size: var(--font-size-label, 11px); }
 .crm-visual .l360-body { padding: var(--space-4, 16px) var(--space-6, 24px) var(--space-6, 24px); }
 .crm-visual .l360-summary {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: var(--space-4, 16px);
   border-radius: var(--radius-md, 8px);
 }
@@ -349,6 +349,8 @@
   border-right: 1px solid var(--color-border);
 }
 .crm-visual .l360-stat:last-child { border-right: 0; }
+.crm-visual .l360-stat:nth-child(-n + 3) { border-bottom: 1px solid var(--color-border); }
+.crm-visual .l360-stat:nth-child(3n) { border-right: 0; }
 .crm-visual .l360-stat dt {
   gap: var(--space-1, 4px);
   margin-bottom: var(--space-1, 4px);
@@ -362,7 +364,7 @@
   letter-spacing: -.01em;
   font-variant-numeric: tabular-nums;
 }
-.crm-visual .l360-stat:first-child dd { font-size: 16px; }
+.crm-visual .l360-stat:first-child dd { font-size: 18px; }
 .crm-visual .l360-stat small { font-size: var(--font-size-label, 11px); line-height: 1.4; }
 .crm-visual .l360-overview-grid { gap: var(--space-6, 24px); }
 .crm-visual .l360-column { gap: var(--space-4, 16px); }
@@ -395,7 +397,7 @@
 .crm-visual .l360-note,
 .crm-visual .l360-next-description {
   font-size: var(--font-size-body, 13px);
-  line-height: 1.55;
+  line-height: 1.7;
 }
 .crm-visual .l360-next-action { gap: var(--space-2, 8px); }
 .crm-visual .l360-next-icon {
@@ -551,11 +553,11 @@
   .crm-visual .pipeline-filters { align-items: center; justify-content: flex-start; gap: var(--space-2, 8px); }
   .crm-visual .pipeline-filters .select-wrap,
   .crm-visual .pipeline-filters .pf-config-trigger { min-height: var(--control-height-touch, 40px); }
-  .crm-visual .pipeline-filters .view-switch button { width: 34px; min-height: 34px; }
+  .crm-visual .pipeline-filters .view-switch button { width: var(--control-height-touch); min-height: var(--control-height-touch); }
   .crm-visual .pipeline-summary { flex-wrap: wrap; }
   .crm-visual .pipeline-summary small { flex: 1 1 100%; margin-left: 0; }
   .crm-visual .kanban-column { flex-basis: 244px; }
-  .crm-visual .kanban-column-header button { width: 34px; min-height: 34px; }
+  .crm-visual .kanban-column-header button { width: var(--control-height-touch); min-height: var(--control-height-touch); }
   .crm-visual .card-status-label { min-height: var(--control-height-touch, 40px); }
   .crm-visual .card-status-label select { min-height: 32px; }
   .crm-visual .pf-dialog .button,
@@ -573,8 +575,8 @@
   .crm-visual .l360-dialog { height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .crm-visual .l360-header { grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-2, 8px); padding: var(--space-3, 12px) var(--space-4, 16px); }
   .crm-visual .l360-avatar { width: 32px; height: 32px; font-size: var(--font-size-secondary, 12px); }
-  .crm-visual .l360-heading h2 { padding-right: 40px; font-size: 20px; }
-  .crm-visual .l360-actions .l360-icon-button { top: var(--space-3, 12px); right: var(--space-4, 16px); width: 40px; height: 40px; }
+  .crm-visual .l360-heading h2 { padding-right: 44px; font-size: 22px; }
+  .crm-visual .l360-actions .l360-icon-button { top: var(--space-3, 12px); right: var(--space-4, 16px); width: 44px; height: 44px; }
   .crm-visual .l360-actions .l360-button { min-height: var(--control-height-touch, 40px); }
   .crm-visual .l360-tabs { gap: var(--space-4, 16px); }
   .crm-visual .l360-dialog .l360-tab { min-height: 44px; font-size: var(--font-size-secondary, 12px); }

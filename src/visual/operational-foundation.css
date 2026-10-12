@@ -18,6 +18,13 @@
 }
 
 .crm-visual {
+  /* Refinement belongs to the authenticated UI; public/Auth defaults stay intact. */
+  --control-height: 36px;
+  --control-height-sm: 32px;
+  --control-height-touch: 44px;
+  --font-size-body: 14px;
+  --font-size-secondary: 13px;
+  --font-size-label: 12px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
@@ -182,19 +189,20 @@
 .crm-visual .stat-card { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); box-shadow: none; }
 .crm-visual .stat-top { margin-bottom: var(--space-2); }
 .crm-visual .stat-label { font-size: var(--font-size-secondary); }
-.crm-visual .stat-value { font-size: 26px; line-height: 1.25; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
+.crm-visual .stat-value { font-size: 28px; line-height: 1.25; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
 .crm-visual .stat-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); }
 .crm-visual .stat-icon svg { width: 15px; height: 15px; }
 .crm-visual .stat-bottom { font-size: var(--font-size-label); line-height: 1.4; gap: 6px; margin-top: var(--space-2); flex-wrap: wrap; white-space: normal; }
 .crm-visual .dashboard-chart-grid,.crm-visual .dashboard-secondary-grid { gap: var(--space-3); margin-bottom: var(--space-3); }
 .crm-visual .panel { border-radius: var(--radius-md); box-shadow: none; }
 .crm-visual .panel-header { padding: var(--space-3) var(--space-4) 0; gap: var(--space-3); }
-.crm-visual .panel-header h2,.crm-visual .panel-title { font-size: 15px; line-height: 1.4; font-weight: 700; letter-spacing: -.2px; }
+.crm-visual .panel-header h2,.crm-visual .panel-title { font-size: var(--font-size-section); line-height: 1.4; font-weight: 650; letter-spacing: -.2px; }
 .crm-visual .panel-header p { font-size: var(--font-size-secondary); margin-top: 3px; line-height: 1.5; }
 .crm-visual .chart-summary { padding: var(--space-2) var(--space-4) 0; gap: var(--space-2); }
 .crm-visual .chart-summary strong { font-size: 24px; letter-spacing: -.5px; }
 .crm-visual .chart-summary > span,.crm-visual .chart-legend { font-size: var(--font-size-label); }
-.crm-visual .revenue-chart { height: 194px; margin: var(--space-2) var(--space-3) var(--space-3) 0; }
+.crm-visual .revenue-chart { height: 208px; margin: var(--space-2) var(--space-3) var(--space-3) 0; }
+.crm-visual .recharts-cartesian-axis-tick-value { font-size: var(--font-size-label); }
 .crm-visual .goal-ring { width: 138px; height: 138px; margin: var(--space-3) auto var(--space-2); }
 .crm-visual .goal-ring strong { font-size: 30px; }
 .crm-visual .goal-ring strong small { font-size: 16px; }
@@ -297,7 +305,7 @@
   .crm-visual .page-heading > div:first-child { width: 100%; }
   .crm-visual .page-actions { flex-wrap: wrap; margin-top: 0; }
   .crm-visual .button,.crm-visual .period-select { min-height: var(--control-height-touch); }
-  .crm-visual .icon-button { width: 36px; height: 36px; }
+  .crm-visual .icon-button { width: var(--control-height-touch); height: var(--control-height-touch); }
   .crm-visual .form-grid :is(input,select,textarea) { min-height: var(--control-height-touch); font-size: 16px; }
   .crm-visual .metrics-grid { gap: var(--space-2); }
   .crm-visual .stat-card { padding: var(--space-3); }

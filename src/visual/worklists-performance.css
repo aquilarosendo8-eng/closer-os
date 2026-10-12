@@ -17,7 +17,7 @@
 }
 
 .crm-visual .cp-page .stat-label {
-  font-size: var(--font-size-label, 11px);
+  font-size: var(--font-size-secondary, 13px);
   line-height: 1.45;
 }
 
@@ -147,8 +147,8 @@
 
 .crm-visual .cp-page .data-table td {
   padding: var(--space-2, 8px) var(--space-3, 12px);
-  font-size: var(--font-size-secondary, 12px);
-  line-height: 1.45;
+  font-size: var(--font-size-body, 14px);
+  line-height: 1.5;
 }
 
 .crm-visual .cp-page .data-table tbody tr {
