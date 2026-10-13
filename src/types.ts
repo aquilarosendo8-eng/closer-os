@@ -56,6 +56,11 @@ export interface Lead {
   recordingUrl?: string
   nextStep?: string
   leadershipReview?: LeadershipReview
+  importMetadata?: {
+    createdAtSource: 'provided' | 'import'
+    lastContactAtSource: 'provided' | 'import'
+    importedAt: string
+  }
 }
 export type Page = 'dashboard' | 'pipeline' | 'calls' | 'performance' | 'activities'
 export interface Settings { name: string; commissionRate: number; revenueGoal: number }

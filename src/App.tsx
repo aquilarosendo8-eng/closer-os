@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import { ArrowDownToLine, ArrowRight, Bell, CalendarDays, ClipboardList, Check, ChevronDown, ChevronRight, Command, Database, Download, LayoutDashboard, LifeBuoy, LogOut, PanelLeftClose, Plus, Search, Settings2, Sparkles, TrendingUp, UsersRound, Video, X } from 'lucide-react'
 import type { Lead, Page, Settings } from './types'
 import { createDemoLeads, defaultSettings } from './lib/data'
@@ -18,6 +18,7 @@ import './components/opportunity-integration.css'
 import LeadForm, { makeLead } from './components/LeadForm'
 import { validLead, validSettings } from './lib/validation'
 import type { CloudAppContext } from './lib/cloud-types'
+import type { ImportLeadsWizardProps } from './components/ImportLeadsWizard'
 
 const LEGACY_LEADS_KEY = 'closer-os-leads-v1'
 const LEGACY_SETTINGS_KEY = 'closer-os-settings-v1'
@@ -62,6 +63,7 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
   const canEdit = !cloud || (cloud.canEdit && !cloud.loading)
   const canDelete = !cloud || (cloud.canDelete && !cloud.loading)
   const canManageSettings = !cloud || (cloud.canManageSettings && !cloud.loading)
+  const canImportExternal = Boolean(cloud?.workspaceId && ['admin', 'manager'].includes(cloud.role) && canEdit)
   const canExport = !cloud || cloud.canExport
   const userName = cloud?.userName || settings.name
   const demoOpportunity = useDemoOpportunity(!cloud, demo ? 'closer-os-demo-opportunity-v1' : 'closer-os-local-opportunity-v1', leads, userName)
@@ -77,6 +79,15 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
   const [editing, setEditing] = useState<{ lead: Lead; isNew: boolean } | null>(null)
   const [toast, setToast] = useState(cloud ? '' : loadWarning)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [ImportWizard, setImportWizard] = useState<ComponentType<ImportLeadsWizardProps> | null>(null)
+  const [importWizardLoading, setImportWizardLoading] = useState(false)
+  const [importWizardOpen, setImportWizardOpen] = useState(false)
+  const importWizardLoad = useRef(false)
+  const appMounted = useRef(true)
+  const appScope = cloud ? `${cloud.workspaceId || ''}:${cloud.userId}:${cloud.role}` : leadsKey
+  const currentAppScope = useRef(appScope)
+  currentAppScope.current = appScope
+  useEffect(() => { appMounted.current = true; return () => { appMounted.current = false } }, [])
   const [helpOpen, setHelpOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -207,13 +218,33 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
     localStorage.setItem(leadsKey, JSON.stringify(next)); setLeads(next); setRecoveryMode(false)
     return { imported: next.length - leads.length, skipped: records.length - (next.length - leads.length) }
   }
+  const readBackupAndImport = async (file: File) => {
+    if (!canEdit) throw new Error('Você não tem permissão para importar leads.')
+    const requestedScope = appScope
+    const parsed = JSON.parse(await file.text())
+    if (!appMounted.current || currentAppScope.current !== requestedScope) throw new Error('Importação cancelada: o acesso à empresa foi alterado. Entre novamente antes de importar.')
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.leads) || !parsed.leads.every(validLead)) throw new Error('Use um backup JSON válido do HIGH CLOSER.')
+    return importRecords(parsed.leads)
+  }
+  const openImportWizard = async () => {
+    if (!canImportExternal || importWizardLoad.current || importing) return
+    importWizardLoad.current = true; setImportWizardLoading(true); setSettingsError('')
+    try {
+      const component = ImportWizard || (await import('./components/ImportLeadsWizard')).default
+      if (!appMounted.current) return
+      setImportWizard(() => component); setSettingsOpen(false); setImportWizardOpen(true)
+    } catch {
+      if (appMounted.current) setSettingsError('Não foi possível abrir o importador. Confira sua conexão e tente novamente.')
+    } finally {
+      importWizardLoad.current = false
+      if (appMounted.current) setImportWizardLoading(false)
+    }
+  }
   const importBackup = async (file?: File) => {
     if (!file || importing || !canEdit) return
     setImporting(true); setSettingsError('')
     try {
-      const parsed = JSON.parse(await file.text())
-      if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.leads) || !parsed.leads.every(validLead)) throw new Error('Use um backup JSON válido do HIGH CLOSER.')
-      const result = await importRecords(parsed.leads)
+      const result = await readBackupAndImport(file)
       setToast(`${result.imported} leads importados. Os leads existentes foram preservados.`)
     } catch (error) { setSettingsError(error instanceof Error ? error.message : 'Não foi possível importar os leads.'); setToast('Não foi possível importar. Use um backup JSON válido do HIGH CLOSER.') }
     finally { setImporting(false); if (importRef.current) importRef.current.value = '' }
@@ -262,7 +293,8 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
     <footer className="main-footer"><span><span className="tiny-brand">HC</span> HIGH CLOSER <span>·</span> Sales Performance System</span><span><span className="live-dot" />{cloud ? (cloud.loading ? 'Sincronizando com a nuvem' : cloud.error ? 'Falha na sincronização' : 'Salvo na nuvem') : `${hasDemo ? 'Dados de demonstração · ' : ''}Salvo neste navegador`}</span></footer></main></div>
     {openedLead && detailsService && <Lead360 key={`${cloud?.workspaceId || "demo"}:${openedLead.id}`} lead={openedLead} stages={pipelineStages} ownerDisplayName={ownerNames[leadOwners[openedLead.id]] || "Responsável"} detailsService={detailsService} activities={activityView.activities} members={activityView.members} userId={activityView.userId} userName={userName} leadOwners={leadOwners} canEdit={canEdit && (!cloud || cloud.role !== "closer" || leadOwners[openedLead.id] === cloud.userId)} canManage={activityView.canManage} onSaveActivity={activityView.onSaveActivity} onSetActivityStatus={activityView.onSetActivityStatus} loadingActivity={activityView.loading} errorActivity={activityView.error} onRetryActivity={activityView.onRetry} onEdit={edit} onClose={() => setOpenedLeadId(null)} />}
     {editing && <div ref={dialogRef}><LeadForm stages={pipelineStages} key={editing.lead.id} lead={editing.lead} isNew={editing.isNew} onSave={save} onClose={() => setEditing(null)} onDelete={remove} canEdit={canEdit} canDelete={canDelete} members={cloud?.members} ownerId={cloud?.leadOwners?.[editing.lead.id] || cloud?.userId} canAssign={Boolean(cloud?.onAssignLead && ['admin', 'manager'].includes(cloud.role) && canEdit)} /></div>}
-    {settingsOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false) }}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={dialogRef}><div className="panel-header"><div><h2 id="settings-title">Seu workspace</h2><p>Configure suas metas e mantenha seus dados seguros.</p></div><button className="icon-button" aria-label="Fechar configurações" onClick={() => setSettingsOpen(false)}><X size={20} /></button></div><form onSubmit={event => void saveSettings(event)}><fieldset disabled={!canManageSettings || settingsSaving} style={{ border: 0, padding: 0, margin: 0 }}><div className="form-grid"><label className="full-field">{cloud ? 'Nome exibido no workspace' : 'Seu nome'}<input required maxLength={80} value={settingsDraft.name} onChange={event => setSettingsDraft({ ...settingsDraft, name: event.target.value })} /></label><label>Meta de faturamento (R$)<input required type="number" min="1" value={settingsDraft.revenueGoal} onChange={event => setSettingsDraft({ ...settingsDraft, revenueGoal: Number(event.target.value) })} /></label><label>Comissão (%)<input required type="number" min="0" max="100" step="0.1" value={settingsDraft.commissionRate} onChange={event => setSettingsDraft({ ...settingsDraft, commissionRate: Number(event.target.value) })} /></label></div>{canManageSettings && <button className="button button-primary settings-save" type="submit"><Check size={15} />{settingsSaving ? 'Salvando…' : 'Salvar configurações'}</button>}</fieldset>{!canManageSettings && <p className="muted">As metas são gerenciadas pelo administrador da empresa.</p>}</form>{settingsError && <p role="alert">{settingsError}</p>}<div className="settings-data"><h3><Database size={16} />Seus dados</h3><p>{cloud ? "Seus dados ficam na nuvem e são privados à sua empresa. A importação mantém os registros já existentes." : "Os dados ficam neste navegador. Exporte um backup antes de trocar de dispositivo ou limpar o armazenamento."}</p><div className="settings-backup-actions">{canExport && <button className="button button-secondary" onClick={exportBackup}><Download size={15} />Exportar backup</button>}{canEdit && <button className="button button-secondary" disabled={importing} onClick={() => importRef.current?.click()}>{importing ? "Importando…" : "Importar leads"}</button>}{cloud && canEdit && <button className="button button-secondary" disabled={importing} onClick={() => void importLocal()}>Importar meus dados deste navegador</button>}<input ref={importRef} type="file" accept="application/json,.json" hidden onChange={event => void importBackup(event.target.files?.[0])} /></div>{hasDemo && <>{confirmClear ? <div className="clear-confirm"><p>Remover apenas os leads de demonstração? Seus leads cadastrados serão preservados.</p><button className="button button-danger" onClick={() => { try { persist(leads.filter(lead => !lead.id.startsWith('demo-')), 'Dados de demonstração removidos.'); setConfirmClear(false) } catch { /* Error is shown by persist. */ } }}>Sim, remover demonstração</button><button className="text-button" onClick={() => setConfirmClear(false)}>Cancelar</button></div> : <button className="text-button danger" onClick={() => setConfirmClear(true)}>Remover dados de demonstração</button>}</>}</div></div></div>}
+    {settingsOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false) }}><div className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={dialogRef}><div className="panel-header"><div><h2 id="settings-title">Seu workspace</h2><p>Configure suas metas e mantenha seus dados seguros.</p></div><button className="icon-button" aria-label="Fechar configurações" onClick={() => setSettingsOpen(false)}><X size={20} /></button></div><form onSubmit={event => void saveSettings(event)}><fieldset disabled={!canManageSettings || settingsSaving} style={{ border: 0, padding: 0, margin: 0 }}><div className="form-grid"><label className="full-field">{cloud ? 'Nome exibido no workspace' : 'Seu nome'}<input required maxLength={80} value={settingsDraft.name} onChange={event => setSettingsDraft({ ...settingsDraft, name: event.target.value })} /></label><label>Meta de faturamento (R$)<input required type="number" min="1" value={settingsDraft.revenueGoal} onChange={event => setSettingsDraft({ ...settingsDraft, revenueGoal: Number(event.target.value) })} /></label><label>Comissão (%)<input required type="number" min="0" max="100" step="0.1" value={settingsDraft.commissionRate} onChange={event => setSettingsDraft({ ...settingsDraft, commissionRate: Number(event.target.value) })} /></label></div>{canManageSettings && <button className="button button-primary settings-save" type="submit"><Check size={15} />{settingsSaving ? 'Salvando…' : 'Salvar configurações'}</button>}</fieldset>{!canManageSettings && <p className="muted">As metas são gerenciadas pelo administrador da empresa.</p>}</form>{settingsError && <p role="alert">{settingsError}</p>}<div className="settings-data"><h3><Database size={16} />Seus dados</h3><p>{cloud ? "Seus dados ficam na nuvem e são privados à sua empresa. A importação mantém os registros já existentes." : "Os dados ficam neste navegador. Exporte um backup antes de trocar de dispositivo ou limpar o armazenamento."}</p><div className="settings-backup-actions">{canExport && <button className="button button-secondary" onClick={exportBackup}><Download size={15} />Exportar backup</button>}{canEdit && <button className="button button-secondary" disabled={importing || importWizardLoading} onClick={() => { if (canImportExternal) void openImportWizard(); else importRef.current?.click() }}>{importing ? "Importando…" : importWizardLoading ? "Preparando importador…" : "Importar leads"}</button>}{canImportExternal && <button className="button button-secondary" disabled={importing || importWizardLoading} onClick={() => importRef.current?.click()}>Importar backup JSON</button>}{cloud && canEdit && <button className="button button-secondary" disabled={importing} onClick={() => void importLocal()}>Importar meus dados deste navegador</button>}<input ref={importRef} type="file" accept="application/json,.json" hidden onChange={event => void importBackup(event.target.files?.[0])} /></div>{hasDemo && <>{confirmClear ? <div className="clear-confirm"><p>Remover apenas os leads de demonstração? Seus leads cadastrados serão preservados.</p><button className="button button-danger" onClick={() => { try { persist(leads.filter(lead => !lead.id.startsWith('demo-')), 'Dados de demonstração removidos.'); setConfirmClear(false) } catch { /* Error is shown by persist. */ } }}>Sim, remover demonstração</button><button className="text-button" onClick={() => setConfirmClear(false)}>Cancelar</button></div> : <button className="text-button danger" onClick={() => setConfirmClear(true)}>Remover dados de demonstração</button>}</>}</div></div></div>}
+    {importWizardOpen && ImportWizard && cloud?.workspaceId && canImportExternal && <ImportWizard workspace={{ id: cloud.workspaceId, name: cloud.workspaceName }} userId={cloud.userId} role={cloud.role} stages={pipelineStages} members={cloud.members || []} onImportBackup={readBackupAndImport} onComplete={async () => { await cloud.onRefreshData?.() }} onClose={() => { setImportWizardOpen(false); setSettingsOpen(true) }} />}
     {helpOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setHelpOpen(false) }}><div className="settings-modal help-modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="help-title"><div className="panel-header"><div><h2 id="help-title">Seu próximo nível começa aqui</h2><p>Um fluxo simples para vender melhor.</p></div><button className="icon-button" aria-label="Fechar ajuda" onClick={() => setHelpOpen(false)}><X size={20} /></button></div><ol><li><strong>Cadastre e qualifique.</strong><p>Registre ticket, origem e contexto. Mova a oportunidade pelo pipeline.</p></li><li><strong>Aprenda com suas calls.</strong><p>Registre comparecimento, objeções, nota e o que você pode melhorar. A leitura assistida usa regras locais para sugerir próximos passos.</p></li><li><strong>Feche e acompanhe.</strong><p>Ao marcar como fechado, informe o valor. Receita e comissão são calculadas automaticamente.</p></li><li><strong>Evolua toda semana.</strong><p>Observe suas notas, erros recorrentes e conversão por origem.</p></li></ol><div className="help-metrics"><h3>Como calculamos</h3><p><b>Comparecimento:</b> calls realizadas ÷ calls com presença ou falta registrada. Calls pendentes ficam fora.</p><p><b>Fechamento:</b> vendas fechadas ÷ calls realizadas. Vendas fechadas contam como comparecimento.</p><p><b>Ticket médio:</b> faturamento ÷ vendas fechadas. Receita usa a data de fechamento.</p></div><button className="button button-primary" onClick={() => setHelpOpen(false)}>Entendi. Vamos fechar!</button></div></div>}
     {toast && <div role="status" className={`toast ${toast.includes('Não') ? 'toast-error' : ''}`}><span className="toast-icon"><Check size={16} /></span>{toast}<button aria-label="Fechar aviso" onClick={() => setToast('')}><X size={15} /></button></div>}
   </div>

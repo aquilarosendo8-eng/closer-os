@@ -5,6 +5,7 @@ import { administrationService } from './access'
 import { readableError, requireSupabase } from './supabase'
 import { normalizeRecordingUrl, validLead, validLeadershipReview, validPipelineStages, validReviewInput, validSettings } from './validation'
 import { getLeadStageType, normalizeLegacyLead } from './pipeline'
+import { listCloudLeadRows } from './cloud-leads'
 
 interface CloudData {
   leads: Lead[]
@@ -22,6 +23,7 @@ export function useCloudData(access: WorkspaceAccess | null) {
   const [loadedScope, setLoadedScope] = useState('')
   const scope = `${access?.workspace.id || ''}:${access?.membership.userId || ''}:${access?.membership.role || ''}`
   const currentScope = useRef(scope)
+  const scopeActive = useRef(true)
   currentScope.current = scope
   const workspaceId = access?.workspace.id
   const userId = access?.membership.userId
@@ -31,19 +33,17 @@ export function useCloudData(access: WorkspaceAccess | null) {
     const requestedScope = `${workspaceId}:${userId}:${role}`
     try {
       const client = requireSupabase()
-      const [leadResult, settingsResult, members, stageResult, reviewResult] = await Promise.all([
-        client.from('leads').select('id,owner_id,data,stage_id').eq('workspace_id', workspaceId).order('created_at', { ascending: false }),
+      const [rows, settingsResult, members, stageResult, reviewResult] = await Promise.all([
+        listCloudLeadRows(workspaceId),
         client.from('workspace_settings').select('name,commission_rate,revenue_goal').eq('workspace_id', workspaceId).single(),
         role === 'admin' || role === 'manager' ? administrationService.listMembers(workspaceId) : Promise.resolve([]),
         client.rpc('list_pipeline_stages', { p_workspace_id: workspaceId }),
         client.rpc('list_call_reviews', { p_workspace_id: workspaceId }),
       ])
-      if (leadResult.error) throw leadResult.error
       if (settingsResult.error) throw settingsResult.error
       if (stageResult.error) throw stageResult.error
       if (reviewResult.error) throw reviewResult.error
       if (currentScope.current !== requestedScope) return
-      const rows = leadResult.data || []
       const stages: Stage[] = (stageResult.data || []).map((row: Record<string, unknown>) => ({
         id: row.id as string, pipelineId: row.pipeline_id as string, name: row.name as string, position: row.position as number,
         color: row.color as string, type: row.type as Stage['type'], active: row.active as boolean, leadCount: Number(row.lead_count || 0),
@@ -80,11 +80,12 @@ export function useCloudData(access: WorkspaceAccess | null) {
   }, [workspaceId, userId, role])
 
   useEffect(() => {
+    scopeActive.current = true
     setData({ leads: [], settings: emptySettings, owners: {}, members: [], stages: [] }); setError(''); setLoading(Boolean(workspaceId))
     if (!workspaceId) return
     void refresh()
     const timer = window.setInterval(() => { if (!document.hidden) void refresh() }, 30000)
-    return () => clearInterval(timer)
+    return () => { scopeActive.current = false; clearInterval(timer) }
   }, [scope, refresh, workspaceId])
 
   const saveLead = async (lead: Lead) => {
@@ -126,8 +127,10 @@ export function useCloudData(access: WorkspaceAccess | null) {
   const importLeads = async (leads: Lead[]) => {
     if (!workspaceId || !userId || !leads.every(validLead)) throw new Error('Use um backup válido do HIGH CLOSER.')
     let imported = 0, skipped = 0
+    const requestedScope = `${workspaceId}:${userId}:${role}`
     try {
       for (let offset = 0; offset < leads.length; offset += 1000) {
+        if (!scopeActive.current || currentScope.current !== requestedScope) throw new Error('O acesso à empresa mudou. A importação foi interrompida antes do próximo lote.')
         // Reviews belong to a separate authenticated write path and are never restored through lead JSON.
         const records = leads.slice(offset, offset + 1000).map(({ leadershipReview: _review, ...lead }) => ({
           ...lead, ...(lead.recordingUrl !== undefined ? { recordingUrl: normalizeRecordingUrl(lead.recordingUrl) } : {}),

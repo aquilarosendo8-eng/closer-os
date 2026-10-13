@@ -9,6 +9,7 @@ import { validLeadershipReview, validRecordingUrl } from '../lib/validation'
 import { lockDialogScroll } from '../lib/dialog-scroll'
 import { ActivityList } from './Activities'
 import { instagramProfileUrl, presentLeadNotes } from '../lib/lead-qualification'
+import { isImportContactReference } from '../lib/import-date-reference'
 import './lead-360.css'
 
 export interface Lead360Props extends ActivityActions {
@@ -281,7 +282,7 @@ function Lead360Content({ lead, ownerDisplayName, stages, detailsService, activi
             {isWon(lead) && <section className="l360-outcome is-won"><h3><BadgeCheck size={15}/>Venda fechada</h3><p>{money(lead.closedValue)}</p><small>Fechamento em {safeDate(lead.closedAt)}</small></section>}
             {isLost(lead) && <section className="l360-outcome is-lost"><h3><Flag size={15}/>Motivo da perda</h3><p>{lead.lossReason || 'Motivo ainda não registrado.'}</p>{lead.lossComment && <small>{lead.lossComment}</small>}</section>}
             <div className="l360-overview-grid"><div className="l360-column">
-              <section className="l360-card"><div className="l360-card-heading"><h3><UserRound size={16}/>Dados do lead</h3></div><dl className="l360-detail-grid"><Detail label="Nome" value={lead.name}/><Detail label="Empresa" value={lead.company}/><Detail label="E-mail" value={lead.email}/><Detail label="Telefone / WhatsApp" value={lead.phone}/><Detail label="Origem" value={lead.source}/><Detail label="Cadastrado em" value={safeDate(lead.createdAt)}/></dl></section>
+              <section className="l360-card"><div className="l360-card-heading"><h3><UserRound size={16}/>Dados do lead</h3></div><dl className="l360-detail-grid"><Detail label="Nome" value={lead.name}/><Detail label="Empresa" value={lead.company}/><Detail label="E-mail" value={lead.email}/><Detail label="Telefone / WhatsApp" value={lead.phone}/><Detail label="Origem" value={lead.source}/><Detail label="Cadastrado em" value={safeDate(lead.createdAt)}/>{isImportContactReference(lead) && <Detail label="Último contato" value="Não informado na origem; referência técnica da importação."/>}</dl></section>
               {qualification.items.length > 0 && <section className="l360-card l360-qualification" aria-label="Qualificação do lead"><div className="l360-card-heading"><div><h3><BadgeCheck size={16}/>Qualificação do lead</h3><p className="l360-card-subtitle">Perfil da empresa e contexto de investimento</p></div></div><dl className="l360-qualification-grid">{qualificationItems.map((item, index) => {
                 const profile = item.key === 'instagram' ? instagramProfileUrl(item.value) : null
                 return <div className={`l360-qualification-item${item.key === 'about' ? ' is-description' : ''}`} key={`${item.key}:${index}`}><dt>{item.label}</dt><dd>{profile ? <a href={profile} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{item.value}<ExternalLink size={13}/></a> : item.key === 'investment' || item.key === 'minimum' ? <span className="l360-qualification-value">{item.value}</span> : item.value}</dd></div>

@@ -165,6 +165,36 @@ async function main() {
     not exists(select 1 from pg_policies where schemaname='public' and tablename in ('leads','call_reviews','activities','lead_events','pipeline_stages','workspace_settings','audit_logs')
       and (coalesce(qual,'')||coalesce(with_check,'')) ~ 'is_platform_admin|can_manage_workspace') as no_commercial_platform_policy`)
   if (masterAccess.length !== 1 || !masterAccess[0].institutional_contact || !masterAccess[0].receipt_rls || masterAccess[0].receipt_client_access || masterAccess[0].contact_direct_write || Number(masterAccess[0].guarded_rpcs) !== platformSignatures.length || !masterAccess[0].no_commercial_platform_policy) fail('A administração Master precisa de RPCs explícitas, recibos privados e isolamento dos dados comerciais.')
+  const externalImportSignatures = ['public.preview_import_leads(uuid,jsonb,text,jsonb)', 'public.import_external_leads(uuid,jsonb,text)']
+  const externalImportHelpers = ['private.cleanup_external_import_keys()', 'private.assert_external_import(uuid,jsonb,text,boolean)',
+    'private.prepare_external_import_record(uuid,jsonb,text)', 'private.external_import_matches(uuid,jsonb,jsonb)',
+    'private.external_import_identity(uuid,text)', 'private.external_import_preview_context(uuid,jsonb,integer)']
+  const externalImportAccess = await query(`select
+    exists(select 1 from pg_class where oid=to_regclass('private.external_import_keys') and relrowsecurity) as provenance_rls,
+    has_table_privilege('authenticated','private.external_import_keys','SELECT,INSERT,UPDATE,DELETE') as provenance_client_access,
+    has_table_privilege('anon','private.external_import_keys','SELECT,INSERT,UPDATE,DELETE') as provenance_anon_access,
+    exists(select 1 from pg_trigger where tgrelid='public.leads'::regclass and tgname='external_import_keys_cleanup'
+      and not tgisinternal and tgenabled='O' and tgfoid=to_regprocedure('private.cleanup_external_import_keys()')) as deletion_cleanup,
+    not exists(select 1 from pg_constraint where conrelid=to_regclass('private.external_import_keys')
+      and contype='f' and confrelid='public.leads'::regclass) as nonlocking_provenance,
+    (select count(*) from pg_proc p where p.oid in (${externalImportSignatures.map(value => `to_regprocedure(${sqlString(value)})`).join(',')})
+      and p.prosecdef and 'search_path=""'=any(p.proconfig)
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where a.grantee=0 and a.privilege_type='EXECUTE')
+      and not exists(select 1 from unnest(coalesce(p.proconfig,array[]::text[])) setting where setting like 'request.jwt.%')) as guarded_rpcs,
+    (select count(*) from pg_proc p where p.oid in (${externalImportHelpers.map(value => `to_regprocedure(${sqlString(value)})`).join(',')})
+      and 'search_path=""'=any(p.proconfig)
+      and not has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where a.grantee=0 and a.privilege_type='EXECUTE')) as private_helpers,
+    to_regprocedure('public.import_leads(uuid,jsonb,uuid)') is not null as legacy_json_rpc`)
+  if (externalImportAccess.length !== 1 || !externalImportAccess[0].provenance_rls || externalImportAccess[0].provenance_client_access
+      || externalImportAccess[0].provenance_anon_access || !externalImportAccess[0].deletion_cleanup || !externalImportAccess[0].nonlocking_provenance
+      || Number(externalImportAccess[0].guarded_rpcs) !== externalImportSignatures.length
+      || Number(externalImportAccess[0].private_helpers) !== externalImportHelpers.length || !externalImportAccess[0].legacy_json_rpc) {
+    fail('A importação de leads precisa de RPCs autorizadas, proveniência privada, limpeza sem locks de leads existentes e preservação da importação JSON.')
+  }
   console.log(`Autorização: ${expectedTables.length} tabelas com RLS ativada e leads vinculados a etapas.`)
   if (values['check-only']) { console.log('Verificação concluída, sem alteração de contas ou dados.'); return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) fail('Informe --owner-email ou CLOSER_OWNER_EMAIL para preparar o acesso do dono.')

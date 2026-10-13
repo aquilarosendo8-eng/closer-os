@@ -20,6 +20,7 @@ export interface CloudAppContext {
   onDeleteLead: (id: string) => Promise<void>
   onSaveSettings: (settings: Settings) => Promise<void>
   onImportLeads: (leads: Lead[]) => Promise<{ imported: number; skipped?: number }>
+  onRefreshData?: () => Promise<void>
   onOpenAdmin?: () => void
   onSignOut: () => Promise<void>
   loading: boolean
