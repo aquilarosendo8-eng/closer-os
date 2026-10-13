@@ -75,7 +75,25 @@ Esses testes demonstram também o limite da interrupção: sair da conta ou muda
 
 Validação local da implementação consolidada: **487 testes unitários**, **246 casos distintos de navegador** (33 do importador e 213 regressões), **1.440 assertivas PostgreSQL**, incluindo 232 da importação e **22 cenários de concorrência**, e **49 verificações isoladas do provisionamento**, todos aprovados. Três timeouts de navegador sob execução simultânea passaram ao repetir somente os casos afetados com um worker, sem alteração da aplicação. O build de produção passou; permanece o aviso de tamanho do bundle principal já existente. O importador e o leitor em worker são carregados separadamente. A auditoria das dependências de produção não encontrou vulnerabilidades.
 
-A revisão da retomada confirmou interface CSV/XLSX, leitura, mapeamentos, etapas/responsáveis e RPCs já implementados; o trabalho existente foi preservado. Foram estabilizados validação XLSX, precisão das datas, progresso inicial, deduplicação entre lotes sem mesclagem, transações, concorrência com edição/exclusão, retomada e carregamento paginado dos leads. As migrations 001–009 continuam intactas; a 010 é uma migração adicional. A publicação e a prova com arquivos reais serão registradas depois da validação do deploy, sem confundir os testes simulados de navegador com o Supabase de produção.
+A revisão da retomada confirmou interface CSV/XLSX, leitura, mapeamentos, etapas/responsáveis e RPCs já implementados; o trabalho existente foi preservado. Foram estabilizados validação XLSX, precisão das datas, progresso inicial, deduplicação entre lotes sem mesclagem, transações, concorrência com edição/exclusão, retomada e carregamento paginado dos leads. As migrations 001–009 continuam intactas; a 010 é uma migração adicional.
+
+### Prova real em produção — 13/10/2026
+
+O commit funcional `e033c8dc46d370e962271378c39cebd62dc69a86` foi enviado à branch `main`. A Vercel publicou o deploy `dpl_oCsqqB6fgAQoAC64AWkcTcXwUUFz`, em estado **READY**, e confirmou a mesma versão no endereço [HIGH CLOSER](https://closer-os-rho-three.vercel.app/). O build instalou a migration 010 em transação, conferiu os checksums das dez migrations e validou as 18 tabelas públicas com RLS. Nenhuma migration instalada foi reescrita.
+
+Passaram **138 verificações reais de Auth, REST/RPC, RLS e navegador**, usando seis contas confirmadas e duas empresas temporárias, separadas dos clientes:
+
+- CSV UTF-8/BOM com ponto e vírgula, aspas e campos multilinha; mapeamento de dados, etapas próprias, responsáveis reais, confirmação, progresso e visualização nas cinco etapas.
+- CSV com **2.001 leads**, efetivamente gravados em cinco lotes de 500/500/500/500/1, encontrados no CRM após atualização e recarga. A última linha também apareceu na busca, sem truncamento em 1.000 resultados. Outros 2.000 registros foram testados diretamente nas RPCs, incluindo repetição sem duplicação.
+- XLSX com duas abas, escolha da aba, datas no sistema 1904, precisão de milissegundos, valores financeiros e células vazias, seguido de leitura dos valores efetivamente persistidos no Supabase.
+- Restauração JSON nativa, incluindo o acesso próprio de um Closer; o registro usado como sentinela manteve todos os valores, IDs, responsável, etapa e timestamps.
+- Duplicados por contato/origem/linha, conflitos, prévia entre lotes sem mesclar contatos ignorados, concorrência, rollback de lote inválido e retomada idempotente após perda deliberada da resposta de um commit, inclusive depois de editar os contatos do lead já gravado.
+- Admin/Manager da empresa autorizados; Closer/Viewer/Master sem vínculo e acesso anônimo bloqueados no novo fluxo; dados comerciais isolados entre empresas, assinatura pausada e auditoria sem dados comerciais extras.
+- Temas claro/escuro, desktop/mobile, 29 capturas com dados fictícios, cinco workers locais e 19 chamadas reais do importador no navegador. Zero erros de JavaScript, envio de e-mails ou upload do arquivo original para storage.
+
+A limpeza foi verificada no Auth e no banco: seis contas, duas empresas e todos os seus dados temporários removidos. Uma comparação por hash dos **454 registros anteriores nas 18 tabelas** não encontrou alteração, exclusão nem nova linha remanescente. Os relatórios operacionais e a comparação ficam fora do repositório, protegidos no workspace; não incluem credenciais no frontend.
+
+A verificação pública conferiu HTTP 200, sete assets incluindo chunks do importador e worker, modelo CSV disponível, ausência de credenciais privilegiadas nesses arquivos e os guards HTTP 405 das APIs existentes. **CSV, XLSX, mapeamento e deduplicação estão validados e publicados.** Não há configuração manual nova no Supabase ou Vercel para esta entrega; a migration 010 foi instalada pelo provisionamento já configurado.
 
 ## Implementação e manutenção
 
