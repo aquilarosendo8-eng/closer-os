@@ -130,6 +130,64 @@
   font-variant-numeric: tabular-nums;
 }
 .crm-visual .kanban-cards { gap: var(--space-2, 8px); }
+
+/* Only the desktop board occupies the remaining viewport. Touch layouts and
+   compact windows retain page scroll so wrapped toolbars do not crowd cards. */
+@media (min-width: 901px) and (min-height: 560px) and (hover: hover) and (pointer: fine),
+       (min-width: 681px) and (min-height: 740px) and (hover: hover) and (pointer: fine) {
+  .crm-visual:has(.kanban-board) {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+  }
+  .crm-visual:has(.kanban-board) > .cloud-context-bar { flex-shrink: 0; }
+  .crm-visual:has(.kanban-board) > .app-shell {
+    flex: 1;
+    min-height: 0;
+  }
+  .crm-visual:has(.kanban-board) > .app-shell > .sidebar {
+    align-self: stretch;
+    height: auto;
+  }
+  .crm-visual .main-shell:has(> main > .kanban-board) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .crm-visual .main-shell:has(> main > .kanban-board) > .topbar { flex-shrink: 0; }
+  .crm-visual main:has(> .kanban-board) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+  .crm-visual main:has(> .kanban-board) > :not(.kanban-board) { flex-shrink: 0; }
+  .crm-visual .kanban-board {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .crm-visual .kanban-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .crm-visual .kanban-column > :not(.kanban-cards) { flex-shrink: 0; }
+  .crm-visual .kanban-cards {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  .crm-visual .kanban-cards > * { flex-shrink: 0; }
+}
+
 .crm-visual .lead-card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm, 6px);
