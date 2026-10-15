@@ -37,7 +37,17 @@ Se a data de uma call antiga já havia sido apagada antes desta entrega e nenhum
 - **67 verificações de provisionamento** em PostgreSQL descartável, sem usar credenciais ou banco de produção: instalação, repetição, checksums, RLS, papéis existentes e recusa de trigger desativado/importação histórica incompleta/helpers expostos.
 - Build e `git diff --check` aprovados. Temas claro/escuro, larguras de 1366/768/390 pixels, contraste AA e ausência de overflow foram verificados. Os testes de navegador locais simulam Auth/REST; a suíte SQL verifica permissões reais.
 
-A conferência de produção será registrada após a publicação da versão validada. Testes externos usam somente contas e empresas temporárias identificadas, sem envio de e-mails, e precisam comprovar a limpeza ao terminar.
+## Conferência em produção — 15/10/2026
+
+O commit funcional `832eb6b6ced6f9e9cd75c06250540196b5657019` foi enviado à `main` e publicado pela integração nativa da Vercel. O deployment `dpl_6mVgjueyNRdfgwe3cQ8SPNvTjKB4` ficou `READY` e o endereço `https://closer-os-rho-three.vercel.app/` foi conferido com esse mesmo SHA. O build aplicou somente a migration 012, validou os 12 checksums e manteve as 18 tabelas públicas com RLS. Não há configuração manual adicional necessária para esta entrega.
+
+**34 verificações reais passaram**, sem erros de execução nem disparo de e-mails. Usaram cinco contas Auth confirmadas e duas empresas temporárias. A base do SDR começou com quatro agendados entre seis recebidos (**66,7%**) e passou a cinco entre seis (**83,3%**) após o primeiro agendamento pela interface. Duas remarcações, alterações de etapa, limpeza da data atual e reload conservaram o mesmo primeiro registro e uma única conversão. Uma remarcação via REST com JSON sem os campos de histórico também preservou a informação no servidor.
+
+Um lead recebido no mês anterior foi agendado depois: a conversão da coorte anterior foi atualizada sem mudar o denominador atual. Trimestre e todo o período utilizaram suas bases próprias. O Admin viu seis agendados entre oito recebidos (**75%**), respeitando seu escopo mais amplo; SDR, outro responsável, outra empresa e Master sem vínculo permaneceram isolados. Uma empresa sem entradas no mês mostrou `—` mesmo tendo uma call de lead antigo; após receber um lead não agendado, mostrou `0%`.
+
+Comparecimento (**66,7%**), no-show (**33,3%**), fechamento (**50%**) e receita dos registros de teste mantiveram os valores esperados. Os temas claro/escuro e as larguras de 1366/390 pixels foram conferidos na aplicação publicada. A restauração JSON real preservou histórico conhecido, não inventou datas antigas e ignorou IDs duplicados. O RPC existente de CSV/XLSX também preservou evidência de call histórica sem fabricar o instante do primeiro agendamento.
+
+As cinco contas, duas empresas e todos os registros de teste foram removidos, com limpeza verificada. A comparação posterior dos hashes dos **644 registros originais em 18 tabelas** não encontrou diferenças. HTML e sete assets responderam corretamente, sem valores de credenciais privilegiadas; o worker de importação, o modelo CSV e os bloqueios de método das APIs anteriores permaneceram disponíveis.
 
 ## Arquivos alterados
 
