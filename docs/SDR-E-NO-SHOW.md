@@ -33,4 +33,44 @@ Cada indicador recebe somente os leads visíveis ao usuário pelo RLS e pelo per
 
 Os testes de navegador locais simulam HTTP de Auth/REST para validar a interface; a suíte PostgreSQL testa RLS, funções, transações e isolamento reais. A validação em produção usa somente contas e empresas temporárias e é registrada após a confirmação do deploy. Nenhuma senha, token de convite ou credencial deve aparecer nos relatórios públicos.
 
-Validação local consolidada: **499 testes unitários**, **143 cenários distintos de navegador** (12 SDR, 18 no-show e 113 regressões), **1.545 assertivas PostgreSQL**, incluindo 105 de SDR e os 22 cenários concorrentes anteriores, e **61 verificações de provisionamento em banco descartável**, todos aprovados. O build passou; nenhum arquivo das migrations instaladas 001–010 foi modificado.
+Validação local consolidada: **499 testes unitários**, **143 cenários distintos de navegador** (12 SDR, 18 no-show e 113 regressões), **1.545 assertivas PostgreSQL**, incluindo 105 de SDR, **22 cenários concorrentes** e **61 verificações de provisionamento em banco descartável**, todos aprovados. O build passou; nenhum arquivo das migrations instaladas 001–010 foi modificado.
+
+## Validação em produção — 15/10/2026
+
+O commit funcional `2d6907cec6f9503db68c013dccddb29650396dd2` foi enviado ao GitHub e publicado pela integração nativa da Vercel. O deployment `dpl_FjMuoYHMVY7JJgVsrzKZDzNsX1EH` ficou `READY`, e o endereço canônico `https://closer-os-rho-three.vercel.app/` foi conferido com esse mesmo SHA. O build aplicou somente a migration 011, validou os 11 checksums de migrations e manteve 18 tabelas públicas protegidas por RLS. Não há configuração manual adicional no Supabase ou na Vercel para esta entrega.
+
+Foram aprovadas **57 verificações reais em produção**, com cinco contas Auth confirmadas e duas empresas temporárias. O fluxo criou um convite SDR pendente no servidor, aceitou-o na interface, ativou o vínculo correto e realizou login. Foram conferidos leitura/edição/qualificação/agendamento próprios, bloqueio de leads de outros responsáveis e empresas, ausência de administração, alteração Closer ↔ SDR, atribuição administrativa, inbound e preservação das restrições do Master.
+
+Com registros reais de teste, o SDR viu no-show de **25%** (1 falta / 4 calls concluídas), e o Admin viu **50%** (4 / 8), respeitando as respectivas bases autorizadas. Calls pendentes foram excluídas; a redução de 50 pontos percentuais em relação ao mês anterior foi positiva. Todo o período e o estado neutro com apenas calls pendentes foram conferidos, assim como os indicadores legados, os temas claro/escuro e as larguras de 1366 e 390 pixels.
+
+O teste terminou sem erros de execução. Nenhum e-mail foi disparado por essas verificações: o convite foi criado pelo RPC existente e seu aceite foi exercitado na página real; o envio server-side e o link manual são cobertos pelos testes das APIs. Esta rodada não comprova uma nova entrega SMTP.
+
+As cinco contas, duas empresas e todos os registros temporários foram removidos e a limpeza foi verificada. A comparação posterior dos hashes confirmou a preservação dos **454 registros originais nas 18 tabelas**, sem diferenças. HTML e sete assets de produção responderam corretamente; o worker de importação e os bloqueios de método das APIs existentes permaneceram disponíveis. Nenhum valor de credencial privilegiada foi encontrado nos assets publicados.
+
+## Manifesto dos arquivos desta entrega
+
+- `README.md`
+- `api/invitations.mjs`
+- `docs/SDR-E-NO-SHOW.md`
+- `playwright.no-show.config.ts`
+- `playwright.sdr.config.ts`
+- `scripts/provision-supabase.mjs`
+- `scripts/test-database.sh`
+- `src/App.tsx`
+- `src/SaaSApp.tsx`
+- `src/components/Administration.tsx`
+- `src/components/Calls.tsx`
+- `src/components/Dashboard.tsx`
+- `src/components/dashboard-no-show.css`
+- `src/lib/access-types.ts`
+- `src/lib/analytics.ts`
+- `src/visual/account-administration.css`
+- `supabase/migrations/202610150011_sdr_role.sql`
+- `supabase/tests/sdr-role.sql`
+- `tests/access-services.test.ts`
+- `tests/analytics.test.ts`
+- `tests/invitation-link-api.test.ts`
+- `tests/invitations-api.test.ts`
+- `tests/lead-import-reader.test.ts`
+- `tests/no-show.spec.ts`
+- `tests/sdr.spec.ts`
