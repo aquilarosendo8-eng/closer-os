@@ -34,6 +34,10 @@ export interface Lead {
   source: string
   createdAt: string
   callDate: string
+  /** Actual first booking instant when known; absent for historical/imported appointments. */
+  firstScheduledAt?: string
+  /** Retains proven booking history when a legacy call date is later cleared. */
+  hasBeenScheduled?: boolean
   attendance: Attendance
   objection: string
   status: LeadStatus

@@ -1,5 +1,8 @@
 import type { Lead } from '../types'
 import { isWon, isLost } from './pipeline'
+import { hasSchedulingEvidence } from './lead-scheduling-history'
+
+export type DashboardPeriod = 'month' | 'quarter' | 'all'
 
 const moneyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 2 })
 const qualifiedStatuses = new Set<Lead['status']>(['Qualificado', 'Call agendada', 'Compareceu', 'Follow-up', 'Fechado'])
@@ -70,6 +73,31 @@ export function getPeriodLeads(leads: Lead[], period: 'month' | 'quarter' | 'all
     const date = activityDate(lead)
     return !!date && date >= start && date < end
   })
+}
+
+/** Received cohorts follow entry dates, independently of the activity-based legacy indicators. */
+export function getReceivedPeriodLeads(leads: Lead[], period: DashboardPeriod, now = new Date()): Lead[] {
+  const unique = [...new Map(leads.map(lead => [lead.id, lead])).values()]
+  if (period === 'all') return unique
+  const start = new Date(now.getFullYear(), now.getMonth() - (period === 'quarter' ? 2 : 0), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  return unique.filter(lead => {
+    const received = dateOf(lead.createdAt)
+    return !!received && received >= start && received < end
+  })
+}
+
+/** Each received lead contributes at most once, regardless of reschedules or its current stage. */
+export function getBookingMetrics(leads: Lead[], period: DashboardPeriod, now = new Date()) {
+  const summarize = (cohort: Lead[]) => {
+    const received = cohort.length
+    const scheduled = cohort.filter(hasSchedulingEvidence).length
+    return { received, scheduled, rate: received ? scheduled / received * 100 : null }
+  }
+  const current = summarize(getReceivedPeriodLeads(leads, period, now))
+  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const previousRate = period === 'month' ? summarize(getReceivedPeriodLeads(leads, 'month', previousMonth)).rate : null
+  return { ...current, previousRate }
 }
 
 export function getMonthlyPerformance(leads: Lead[], now = new Date()) {

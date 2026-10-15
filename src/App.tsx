@@ -17,6 +17,7 @@ import type { ActivityViewProps } from './lib/opportunity-types'
 import './components/opportunity-integration.css'
 import LeadForm, { makeLead } from './components/LeadForm'
 import { validLead, validSettings } from './lib/validation'
+import { preserveFirstScheduling } from './lib/lead-scheduling-history'
 import type { CloudAppContext } from './lib/cloud-types'
 import type { ImportLeadsWizardProps } from './components/ImportLeadsWizard'
 
@@ -102,7 +103,8 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
   const persist = (next: Lead[], message?: string) => {
     if (cloud) throw new Error('Os dados da nuvem devem ser salvos pela conta autenticada.')
     if (recoveryMode) { const error = new Error('Importe um backup para recuperar os dados antes de salvar.'); setToast(error.message); throw error }
-    try { localStorage.setItem(leadsKey, JSON.stringify(next)); for (const lead of next) { const previous = leads.find(item => item.id === lead.id); if (!previous || JSON.stringify(previous) !== JSON.stringify(lead)) demoOpportunity.recordLeadChange(previous, lead) }; setLeads(next); if (message) setToast(message) }
+    const normalized = next.map(lead => preserveFirstScheduling(lead, leads.find(item => item.id === lead.id)))
+    try { localStorage.setItem(leadsKey, JSON.stringify(normalized)); for (const lead of normalized) { const previous = leads.find(item => item.id === lead.id); if (!previous || JSON.stringify(previous) !== JSON.stringify(lead)) demoOpportunity.recordLeadChange(previous, lead) }; setLeads(normalized); if (message) setToast(message) }
     catch { const error = new Error('O navegador não conseguiu salvar. Exporte um backup e libere espaço.'); setToast(error.message); throw error }
   }
   useEffect(() => {
@@ -285,7 +287,7 @@ export default function App({ cloud, demo = false }: { cloud?: CloudAppContext; 
     {page === 'dashboard' && <div className="overview-strip"><div><span className="live-dot" /><span>Vamos fazer deste mês o seu melhor, <strong>{userName.split(' ')[0]}</strong>.</span></div>{canExport && <button onClick={exportCsv}><ArrowDownToLine size={14} />Exportar relatório</button>}</div>}
     {cloud?.error && <div role="alert" className="clear-confirm">{cloud.error}</div>}{cloud?.loading && <p role="status">Sincronizando os dados da sua empresa…</p>}
     {page === 'dashboard' && <OperationalToday {...activityView} now={clock} onAll={() => navigate('activities')} />}
-    {page === 'dashboard' && <Dashboard pipelineStages={pipelineStages} leads={filteredLeads} allLeads={leads} previousLeads={period === 'month' ? previousLeads : []} settings={settings} onPage={navigate} onEdit={edit} onOpen={openLead} />}
+    {page === 'dashboard' && <Dashboard pipelineStages={pipelineStages} leads={filteredLeads} allLeads={leads} previousLeads={period === 'month' ? previousLeads : []} period={period} settings={settings} onPage={navigate} onEdit={edit} onOpen={openLead} />}
     {page === 'pipeline' && <Pipeline leads={leads} stages={pipelineStages} onOpen={openLead} activities={activityView.activities} now={clock} onEdit={edit} onAdd={add} onUpdate={update} canEdit={canEdit} canConfigure={Boolean(cloud?.canManagePipeline && canEdit && cloud.onSavePipelineStages)} onSaveStages={cloud?.onSavePipelineStages} owners={Object.fromEntries(Object.entries(cloud?.leadOwners || {}).map(([id, owner]) => [id, cloud?.members?.find(member => member.userId === owner)?.displayName || (owner === cloud?.userId ? userName : "Responsável")]))} />}
     {page === 'calls' && <Calls leads={leads} onEdit={edit} onUpdate={update} canEdit={canEdit} role={cloud?.role} userId={cloud?.userId} leadOwners={cloud?.leadOwners} ownerNames={{ ...(cloud ? { [cloud.userId]: userName } : {}), ...Object.fromEntries((cloud?.members || []).map(member => [member.userId, member.displayName || member.email])) }} canReview={Boolean(cloud?.canReviewCalls && canEdit)} onReview={cloud?.onReviewCall} />}
     {page === 'activities' && <Activities {...activityView} />}

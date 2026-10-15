@@ -1,5 +1,6 @@
 import { STATUSES, type Lead, type LeadStatus, type Stage, type StageType } from '../types'
 import { futureCallDate } from './call-scheduling'
+import { preserveFirstScheduling } from './lead-scheduling-history'
 
 const stageColors = ['#afa3ce', '#9581c4', '#7194d6', '#d3a064', '#b67fc3', '#4e9e80', '#bf818a']
 
@@ -57,7 +58,7 @@ export function transitionLead(lead: Lead, stage: Stage, closedValue?: number, l
     if (lossReason !== undefined) next.lossReason = lossReason
     if (lossComment !== undefined) next.lossComment = lossComment
   }
-  return next
+  return preserveFirstScheduling(next, lead)
 }
 
 export function leadInStage(lead: Lead, stage: Stage): boolean {

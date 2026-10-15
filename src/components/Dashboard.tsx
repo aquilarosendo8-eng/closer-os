@@ -2,14 +2,33 @@ import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, CircleDollarSig
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { Lead, Settings, PipelineStage } from '../types'
 import { defaultPipelineStages, getLeadStageName, isWon, isLost } from '../lib/pipeline'
-import { compactMoney, getMetrics, getMonthlyPerformance, initials, money, topObjections } from '../lib/analytics'
+import { compactMoney, getBookingMetrics, getMetrics, getMonthlyPerformance, initials, money, topObjections, type DashboardPeriod } from '../lib/analytics'
 import './dashboard-no-show.css'
+import './dashboard-booking.css'
 
 const palette = ['var(--color-chart-primary, #8b62d9)', 'var(--color-chart-secondary, #b59ae9)', 'var(--color-chart-neutral-1, #d8c9f1)', 'var(--color-chart-neutral-2, #ede6f8)', 'var(--color-chart-neutral-3, #a8b3c8)']
 const stagePalette = ['var(--color-chart-neutral-1, #c6b9e6)', 'var(--color-chart-neutral-2, #ac95d4)', 'var(--color-chart-neutral-3, #9676ca)', 'var(--color-chart-secondary, #8660c0)', 'var(--color-chart-primary, #734caf)', 'var(--color-chart-success, #48a18b)']
 const tooltipContentStyle = { backgroundColor: 'var(--color-surface-raised, #fff)', border: '1px solid var(--color-border, #ccc)', color: 'var(--color-text-primary, inherit)' }
 const tooltipLabelStyle = { color: 'var(--color-text-primary, inherit)' }
 const pct = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+
+function BookingMetric({ leads, period }: { leads: Lead[]; period: DashboardPeriod }) {
+  const { rate, received, scheduled, previousRate } = getBookingMetrics(leads, period)
+  const change = rate !== null && previousRate !== null ? rate - previousRate : null
+  const variation = change === null || change === 0 ? null : Math.abs(change).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  const comparison = change === null ? 'Sem comparação com o mês anterior' : change === 0
+    ? 'Sem alteração em relação ao mês anterior'
+    : `${change > 0 ? 'Aumento' : 'Redução'} de ${variation} pontos percentuais em relação ao mês anterior`
+  const cohort = period === 'month' ? 'Leads recebidos neste mês' : period === 'quarter' ? 'Leads recebidos nos últimos 3 meses' : 'Todos os leads recebidos'
+  return <section className="panel booking-metric" role="group" aria-label="Taxa de agendamento">
+    <div className="booking-heading"><span className="stat-icon blue"><CalendarDays size={18} aria-hidden="true" /></span><div><h2>Taxa de agendamento</h2><p>{cohort}</p></div></div>
+    <div className="booking-result"><strong className="booking-value">{rate === null ? '—' : pct(rate)}</strong><span className="booking-count">{scheduled} de {received} {received === 1 ? 'lead recebido' : 'leads recebidos'}</span></div>
+    <div className="booking-comparison"><span className={`trend ${change === null || change === 0 ? 'neutral' : change > 0 ? 'positive' : 'negative'}`} aria-label={comparison} title={comparison}>
+      {variation === null ? '—' : <>{change !== null && change > 0 ? <ArrowUpRight size={14} aria-hidden="true" /> : <ArrowDownRight size={14} aria-hidden="true" />}{variation} p.p.</>}
+    </span><span>{period === 'month' && change !== null ? 'vs. mês anterior' : 'Conversão acumulada'}</span></div>
+    <p className="booking-description">Leads únicos com agendamento registrado, mesmo após mudanças de etapa.</p>
+  </section>
+}
 
 function NoShowMetric({ rate, missed, previousRate }: { rate: number | null; missed: number; previousRate: number | null }) {
   const change = rate !== null && previousRate !== null ? rate - previousRate : null
@@ -27,7 +46,7 @@ function NoShowMetric({ rate, missed, previousRate }: { rate: number | null; mis
     </span>
   </div>
 }
-export default function Dashboard({ leads, allLeads, previousLeads, settings, pipelineStages = defaultPipelineStages(), onPage, onEdit, onOpen }: { leads: Lead[]; allLeads: Lead[]; previousLeads: Lead[]; settings: Settings; pipelineStages?: PipelineStage[]; onPage: (page: 'pipeline' | 'calls' | 'performance') => void; onEdit: (lead: Lead) => void; onOpen?: (lead: Lead) => void }) {
+export default function Dashboard({ leads, allLeads, previousLeads, period = 'month', settings, pipelineStages = defaultPipelineStages(), onPage, onEdit, onOpen }: { leads: Lead[]; allLeads: Lead[]; previousLeads: Lead[]; period?: DashboardPeriod; settings: Settings; pipelineStages?: PipelineStage[]; onPage: (page: 'pipeline' | 'calls' | 'performance') => void; onEdit: (lead: Lead) => void; onOpen?: (lead: Lead) => void }) {
   const metrics = getMetrics(leads)
   const previous = getMetrics(previousLeads)
   const months = getMonthlyPerformance(allLeads)
@@ -44,6 +63,7 @@ export default function Dashboard({ leads, allLeads, previousLeads, settings, pi
     { label: 'Ticket médio', value: money(metrics.averageTicket), icon: TrendingUp, current: metrics.averageTicket, prior: previous.averageTicket, hint: 'Por venda fechada', tone: 'orange' },
   ]
   return <>
+    <BookingMetric leads={allLeads} period={period} />
     <div className="metrics-grid">{stats.map(({ label, value, icon: Icon, current, prior, hint, tone }) => {
       const change = prior > 0 ? (current - prior) / prior * 100 : null
       return <div className="stat-card" key={label}><div className="stat-top"><span className="stat-label">{label}</span><span className={`stat-icon ${tone}`}><Icon size={17} strokeWidth={1.8} /></span></div><div className="stat-value">{value}</div><div className="stat-bottom">{change !== null ? <span className={`trend ${change >= 0 ? 'positive' : 'negative'}`}>{change >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}{Math.abs(change).toFixed(1).replace('.', ',')}%</span> : <span className="trend neutral">—</span>}<span>{hint}</span></div>{label === 'Taxa de comparecimento' && <NoShowMetric rate={metrics.noShowRate} missed={metrics.missed} previousRate={previous.noShowRate} />}</div>

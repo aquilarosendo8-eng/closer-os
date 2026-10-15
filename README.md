@@ -15,7 +15,7 @@ O [registro da implantação](docs/IMPLANTACAO.md) reúne a versão publicada, a
 ## Recursos
 
 - **CRM:** leads, empresa, contato, ticket previsto, origem, data da call, comparecimento, objeções, etapa, valor fechado e observações. Ao fechar uma venda, os indicadores são recalculados; oportunidades abertas sem contato há mais de cinco dias aparecem em vermelho.
-- **Dashboard:** receita, calls realizadas, show rate e taxa de no-show associadas no mesmo card, close rate, ticket médio, meta e comissão projetada. Gráficos mensais de receita e fechamento, além de qualificados versus fechados.
+- **Dashboard:** taxa de agendamento por leads recebidos, receita, calls realizadas, show rate e taxa de no-show associadas no mesmo card, close rate, ticket médio, meta e comissão projetada. Gráficos mensais de receita e fechamento, além de qualificados versus fechados.
 - **Calls e performance:** nota de 0 a 10, erros recorrentes, dor, urgência, capacidade financeira, decisor, objeções e evolução semanal. A leitura assistida de resumos usa regras locais e sugestões editáveis; não chama um provedor de IA.
 - **Contas privadas:** Supabase Auth, confirmação de e-mail, criação/alteração/recuperação de senha e saída. O CRM exige associação autorizada à empresa, pelo cadastro próprio ou aceite de convite.
 - **Empresas e equipe:** isolamento no PostgreSQL por RLS, cinco papéis, incluindo SDR — Pré-vendas, convites com nome/e-mail/papel, envio e reenvio por e-mail, cópia para WhatsApp, estados de ativação e limites de assentos. Contas novas ativam o acesso; contas existentes usam sua própria senha no link manual. A credencial administrativa permanece no servidor.
@@ -23,6 +23,8 @@ O [registro da implantação](docs/IMPLANTACAO.md) reúne a versão publicada, a
 - **Dados:** exportação CSV, backup JSON e [importação guiada de CSV/XLSX](docs/IMPORTACAO-LEADS.md), com mapeamento, prévia, deduplicação por empresa e retomada em lotes sem sobrescrever oportunidades. A restauração JSON e a migração explícita dos leads pessoais do navegador mantêm suas permissões anteriores. O administrador da empresa dispõe de portabilidade, política de retenção, transferência de responsabilidade e exclusão com confirmação.
 
 Receita usa a data de fechamento; show rate e no-show excluem calls pendentes; close rate divide vendas fechadas por comparecimentos. No-show divide faltas por comparecimentos mais faltas e exibe `—` sem calls concluídas. A comissão é uma projeção gerencial, não um pagamento conciliado. A central de ajuda descreve os denominadores. Consulte [SDR e no-show](docs/SDR-E-NO-SHOW.md).
+
+A taxa de agendamento usa uma base separada por `createdAt`: leads únicos com evidência de agendamento divididos pelos leads recebidos no período. Reagendamentos, remoção da data atual e mudanças de etapa preservam o histórico; sem leads recebidos, mostra `—`. Consulte [Taxa de agendamento](docs/TAXA-DE-AGENDAMENTO.md) para persistência e limites dos dados históricos.
 
 ## Executar
 
@@ -77,7 +79,7 @@ npm run test:saas
 npm run test:db
 ```
 
-Os testes cobrem métricas, demonstração, autenticação, administração, integrações, oportunidades, importação e isolamento no banco. `npm test` reúne **499 testes unitários**, incluindo **71 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API. `test:db` executa as onze migrations e **1.545 verificações reais**, com **22 cenários de concorrência**, em PostgreSQL isolado. Esses comandos não usam o projeto Supabase de produção. Os **33 cenários de navegador do importador** podem ser executados com `npx playwright test --config=playwright.smart-import.config.ts`; contratos, limites e validação estão em [Importação de leads](docs/IMPORTACAO-LEADS.md).
+Os testes cobrem métricas, demonstração, autenticação, administração, integrações, oportunidades, importação e isolamento no banco. `npm test` reúne **543 testes unitários**, incluindo **71 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API. `test:db` executa as doze migrations e **1.609 verificações reais**, com **23 cenários de concorrência**, em PostgreSQL isolado. Esses comandos não usam o projeto Supabase de produção. Os **33 cenários de navegador do importador** podem ser executados com `npx playwright test --config=playwright.smart-import.config.ts`; contratos, limites e validação estão em [Importação de leads](docs/IMPORTACAO-LEADS.md). A taxa de agendamento tem **23 cenários de navegador** em `npx playwright test --config=playwright.booking.config.ts`.
 
 No Supabase conectado, `scripts/test-live.mjs` foi executado com **59 verificações reais de Auth/REST/RLS**: login, convites, papéis, isolamento entre empresas, persistência, distribuição de leads, suspensão e desativação. As contas, empresas e demais fixtures temporárias foram removidas ao concluir. Essa verificação exige credenciais protegidas e autorização para criar fixtures; não faz parte automática da suíte local. Ela não testa entrega de e-mails nem restauração de backups.
 

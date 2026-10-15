@@ -57,7 +57,7 @@ if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/rls.sql" > "$TASK_LOG_DIR/rls.
 fi
 sed -n '/SQL assertions passed:/p' "$TASK_LOG_DIR/rls.log"
 psql_local -Atc "insert into test.results select label from migration_test.results;" >/dev/null
-for task_assertions in self-service invitation-details pipeline-call-reviews account-names lead-activities inbound-integrations platform-company-administration call-scheduling external-lead-import sdr-role; do
+for task_assertions in self-service invitation-details pipeline-call-reviews account-names lead-activities inbound-integrations platform-company-administration call-scheduling external-lead-import sdr-role lead-scheduling-history; do
   if ! psql_local < "$TASK_REPO_ROOT/supabase/tests/$task_assertions.sql" > "$TASK_LOG_DIR/$task_assertions.log" 2>&1; then
     cat "$TASK_LOG_DIR/$task_assertions.log" >&2; exit 1
   fi
@@ -589,4 +589,24 @@ external_finish legacy-b
 psql_local -Atc "select test.ok((select count(*)=1 from public.leads where workspace_id='$TASK_EXTERNAL_WS' and data->>'email'='external-legacy-race@example.test'),'external: legacy JSON and new import preserve one contact');
 select test.ok((select data->>'notes'='Original JSON backup note' from public.leads where workspace_id='$TASK_EXTERNAL_WS' and id='external-legacy-race'),'external: external duplicate does not rewrite original JSON lead');" >/dev/null
 echo 'Concurrent legacy-JSON external-import test passed.'
+
+# A stale whole-document edit waits behind the first booking writer. PostgreSQL
+# supplies the committed OLD row to the history trigger after the row lock.
+TASK_BOOKING_WS="$(psql_local -Atc "select test.value('booking_ws_a')")"
+TASK_BOOKING_AUTH="set local role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000192',true);"
+external_start_session booking-a "$TASK_BOOKING_AUTH
+update public.leads set data=data||'{\"callDate\":\"2026-11-15T12:00:00Z\"}' where workspace_id='$TASK_BOOKING_WS' and id='booking-race';
+insert into test.context select 'booking_race_first',data->>'firstScheduledAt' from public.leads where workspace_id='$TASK_BOOKING_WS' and id='booking-race';
+select pg_advisory_xact_lock(637220);"
+external_wait_marker 637220
+external_start_session booking-b "$TASK_BOOKING_AUTH
+update public.leads set data=test.value('booking_race_stale')::jsonb||'{\"notes\":\"Concurrent stale edit\",\"callDate\":\"\"}' where workspace_id='$TASK_BOOKING_WS' and id='booking-race';
+select pg_advisory_xact_lock(637221);"
+external_wait_lock booking-b
+external_finish booking-a
+external_wait_marker 637221
+external_finish booking-b
+psql_local -Atc "select test.ok((select data->>'firstScheduledAt'=test.value('booking_race_first') and data->'hasBeenScheduled'='true'::jsonb from public.leads where workspace_id='$TASK_BOOKING_WS' and id='booking-race'),'booking: concurrent stale JSON writer preserves first committed booking');
+select test.ok((select data->>'callDate'='' and data->>'notes'='Concurrent stale edit' from public.leads where workspace_id='$TASK_BOOKING_WS' and id='booking-race'),'booking: concurrent stale writer preserves its legitimate edits');" >/dev/null
+echo 'Concurrent first-booking stale-document test passed.'
 psql_local -Atc "select 'Total database assertions: ' || count(*) from test.results"

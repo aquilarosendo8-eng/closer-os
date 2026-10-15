@@ -6,6 +6,7 @@ import { readableError, requireSupabase } from './supabase'
 import { normalizeRecordingUrl, validLead, validLeadershipReview, validPipelineStages, validReviewInput, validSettings } from './validation'
 import { getLeadStageType, normalizeLegacyLead } from './pipeline'
 import { listCloudLeadRows } from './cloud-leads'
+import { preserveFirstScheduling } from './lead-scheduling-history'
 
 interface CloudData {
   leads: Lead[]
@@ -101,7 +102,7 @@ export function useCloudData(access: WorkspaceAccess | null) {
     if (stage.type === 'WON' && lead.closedValue <= 0) throw new Error('Informe um valor fechado maior que zero.')
     if (stage.type === 'LOST' && (!existing || existing.stageId !== stage.id || Boolean(existing.lossReason)) && !lead.lossReason) throw new Error('Informe o motivo da perda antes de salvar.')
     // Canonical stage metadata and leadership authorship are supplied by database tables, never the form JSON.
-    const { leadershipReview: _review, stageType: _type, stageName: _name, ...fields } = lead
+    const { leadershipReview: _review, stageType: _type, stageName: _name, ...fields } = preserveFirstScheduling(lead, existing)
     const payload = { ...fields, stageId: stage.id, ...(fields.recordingUrl !== undefined ? { recordingUrl: normalizeRecordingUrl(fields.recordingUrl) } : {}) }
     const query = existing
       ? client.from('leads').update({ data: payload, stage_id: stage.id }).eq('workspace_id', workspaceId).eq('id', lead.id)

@@ -1,0 +1,33 @@
+.crm-visual .booking-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 24px;
+  margin-bottom: var(--space-3, 12px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+}
+.crm-visual .booking-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crm-visual .booking-heading .stat-icon { flex-shrink: 0; }
+.crm-visual .booking-heading h2 { color: var(--color-text-primary); font-size: 14px; font-weight: 650; line-height: 1.4; }
+.crm-visual .booking-heading p, .crm-visual .booking-count, .crm-visual .booking-comparison > span:last-child, .crm-visual .booking-description {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary, 12px);
+  line-height: 1.5;
+}
+.crm-visual .booking-heading p { margin-top: 2px; }
+.crm-visual .booking-result { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.crm-visual .booking-value { color: var(--color-text-primary); font-size: 28px; font-weight: 650; line-height: 1.2; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.crm-visual .booking-comparison { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.crm-visual .booking-comparison .trend { white-space: nowrap; }
+.crm-visual .booking-description { grid-column: 1 / -1; }
+@media (max-width: 1100px) {
+  .crm-visual .booking-metric { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; }
+  .crm-visual .booking-result { justify-content: flex-end; }
+  .crm-visual .booking-comparison { grid-column: 2; grid-row: 2; }
+  .crm-visual .booking-description { grid-column: 1; grid-row: 2; }
+}
+@media (max-width: 600px) {
+  .crm-visual .booking-metric { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .crm-visual .booking-result, .crm-visual .booking-comparison { justify-content: flex-start; }
+  .crm-visual .booking-comparison, .crm-visual .booking-description { grid-column: 1; grid-row: auto; }
+}

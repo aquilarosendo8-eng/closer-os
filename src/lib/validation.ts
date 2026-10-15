@@ -1,4 +1,5 @@
 import { LOSS_REASONS, STATUSES, type Lead, type LeadershipReview, type LeadershipReviewInput, type Settings, type Stage } from '../types'
+import { validSchedulingTimestamp } from './lead-scheduling-history'
 
 const textFields: (keyof Lead)[] = ['id', 'name', 'company', 'email', 'phone', 'source', 'createdAt', 'callDate', 'objection', 'closedAt', 'lastContactAt', 'notes', 'pain', 'closerError', 'callSummary']
 const dateFields: (keyof Lead)[] = ['createdAt', 'callDate', 'closedAt', 'lastContactAt']
@@ -52,6 +53,8 @@ export function validLead(input: unknown): input is Lead {
   return textFields.every(key => typeof lead[key] === 'string')
     && !!lead.id && !!lead.name.trim()
     && dateFields.every(key => lead[key] === '' || Number.isFinite(new Date(lead[key] as string).getTime()))
+    && (lead.firstScheduledAt === undefined || validSchedulingTimestamp(lead.firstScheduledAt))
+    && (lead.hasBeenScheduled === undefined || typeof lead.hasBeenScheduled === 'boolean')
     && STATUSES.includes(lead.status)
     && ['Pendente', 'Compareceu', 'Não compareceu'].includes(lead.attendance)
     && ['Baixa', 'Média', 'Alta'].includes(lead.urgency)

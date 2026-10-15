@@ -213,6 +213,24 @@ async function main() {
   if (sdrAccess.length !== 1 || Number(sdrAccess[0].role_constraints) !== 2 || Number(sdrAccess[0].guarded_functions) !== sdrSignatures.length) {
     fail('O cargo SDR precisa de validação nos membros e convites e das funções autorizadas com escopo operacional restrito.')
   }
+  const bookingHistory = await query(`select
+    exists(select 1 from pg_trigger where tgrelid='public.leads'::regclass
+      and tgname='lead_scheduling_history' and tgenabled='O' and not tgisinternal and tgtype=23
+      and tgfoid=to_regprocedure('private.preserve_lead_scheduling_history()')) as history_trigger,
+    (select count(*) from pg_proc p where p.oid in (to_regprocedure('private.valid_scheduling_timestamp(jsonb)'),to_regprocedure('private.preserve_lead_scheduling_history()'))
+      and 'search_path=""'=any(p.proconfig)
+      and not has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where a.grantee=0 and a.privilege_type='EXECUTE')
+      and (p.oid<>to_regprocedure('private.preserve_lead_scheduling_history()') or p.prosecdef)) as private_helpers,
+    exists(select 1 from pg_proc p where p.oid=to_regprocedure('public.import_leads(uuid,jsonb,uuid)')
+      and p.prosecdef and 'search_path=""'=any(p.proconfig)
+      and position('closer_os.historical_lead_import' in p.prosrc)>0
+      and position('private.resolve_import_stage' in p.prosrc)>0
+      and position('loss_reason_grandfathered' in p.prosrc)>0) as historical_json_restore`)
+  if (bookingHistory.length !== 1 || !bookingHistory[0].history_trigger || Number(bookingHistory[0].private_helpers) !== 2 || !bookingHistory[0].historical_json_restore) {
+    fail('O histórico de agendamento precisa de um trigger ativo e privado e da importação JSON histórica com as proteções existentes.')
+  }
   console.log(`Autorização: ${expectedTables.length} tabelas com RLS ativada e leads vinculados a etapas.`)
   if (values['check-only']) { console.log('Verificação concluída, sem alteração de contas ou dados.'); return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) fail('Informe --owner-email ou CLOSER_OWNER_EMAIL para preparar o acesso do dono.')
