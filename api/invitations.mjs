@@ -5,7 +5,7 @@ export const config = { maxDuration: 60 }
 const BODY_LIMIT = 2048
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN = /^[a-f0-9]{64}$/
-const ROLES = new Set(['admin', 'manager', 'closer', 'viewer'])
+const ROLES = new Set(['admin', 'manager', 'closer', 'sdr', 'viewer'])
 const EMAIL = /^[^\s@<>"\\]+@[^\s@<>"\\]+\.[^\s@<>"\\]+$/
 
 class RequestError extends Error {

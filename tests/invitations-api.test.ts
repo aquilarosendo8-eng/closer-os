@@ -178,7 +178,7 @@ describe('invitation mail delivery', () => {
     expect(JSON.stringify(response.body)).not.toContain(PRIVATE_KEY)
   })
 
-  it.each(['admin', 'manager', 'closer', 'viewer'])('preserves the requested %s role in the caller-scoped database operation', async role => {
+  it.each(['admin', 'manager', 'closer', 'sdr', 'viewer'])('preserves the requested %s role in the caller-scoped database operation', async role => {
     const f = fixture()
     f.rpc.mockResolvedValueOnce({ data: { ...invitation, role }, error: null })
     const response = await invoke(f.handler, request({ body: { workspaceId: WORKSPACE_ID, email: invitation.email, role } }))

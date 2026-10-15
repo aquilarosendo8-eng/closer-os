@@ -125,6 +125,32 @@ describe('self-owned company adapter', () => {
 })
 
 describe('named invitation client adapter', () => {
+  it.each([false, true])('preserves the SDR role for the protected invitation endpoint (manual %s)', async manual => {
+    const url = `https://crm.example.com/?invite=${TOKEN}`
+    mock.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ invitation: { ...row, role: 'sdr' }, url, ...(manual ? { manualLink: true } : { emailSent: true }) }) })
+    const result = await (manual ? access.administrationService.createManualInvitation : access.administrationService.createInvitation)(WORKSPACE, { email: row.email, role: 'sdr', name: row.name })
+    const [endpoint, options] = mock.fetch.mock.calls[0]
+    expect(endpoint).toBe(manual ? '/api/invitation-link' : '/api/invitations')
+    expect(options.headers.authorization).toBe('Bearer test-user-token')
+    expect(JSON.parse(options.body)).toEqual({ workspaceId: WORKSPACE, email: row.email, role: 'sdr', name: row.name })
+    expect(result.invitation.role).toBe('sdr')
+    expect(mock.rpc).not.toHaveBeenCalled()
+  })
+  it.each([['closer', 'sdr'], ['sdr', 'closer']] as const)('preserves the workspace and activation state when changing a member from %s to %s', async (oldRole, newRole) => {
+    const userId = '30000000-0000-4000-8000-000000000003'
+    mock.rpc.mockResolvedValueOnce({ data: [{ user_id: userId, email: row.email, display_name: row.name, role: oldRole, is_active: true }], error: null })
+    mock.rpc.mockResolvedValueOnce({ data: null, error: null })
+    await access.administrationService.updateMember(WORKSPACE, userId, { role: newRole })
+    expect(mock.rpc).toHaveBeenNthCalledWith(1, 'list_members', { p_workspace_id: WORKSPACE })
+    expect(mock.rpc).toHaveBeenNthCalledWith(2, 'update_member', { p_workspace_id: WORKSPACE, p_user_id: userId, p_role: newRole, p_is_active: true })
+    expect(mock.fetch).not.toHaveBeenCalled()
+  })
+  it('preserves SDR identity when reading pending invitations and active members', async () => {
+    mock.rpc.mockResolvedValueOnce({ data: [{ ...row, role: 'sdr' }], error: null })
+    mock.rpc.mockResolvedValueOnce({ data: [{ user_id: 'sdr-user', email: row.email, display_name: row.name, role: 'sdr', is_active: true }], error: null })
+    await expect(access.administrationService.listInvitations(WORKSPACE)).resolves.toMatchObject([{ role: 'sdr', status: 'pending' }])
+    await expect(access.administrationService.listMembers(WORKSPACE)).resolves.toMatchObject([{ userId: 'sdr-user', role: 'sdr', active: true }])
+  })
   it('uses the protected mail API with the current session and normalized name/email', async () => {
     mock.fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ invitation: row, url: `https://crm.example.com/?invite=${TOKEN}`, emailSent: true }) })
     const result = await access.administrationService.createInvitation(WORKSPACE, { email: ' Client@Example.com ', role: 'closer', name: ' Maria Silva ' })

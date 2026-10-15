@@ -3,12 +3,30 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, Res
 import type { Lead, Settings, PipelineStage } from '../types'
 import { defaultPipelineStages, getLeadStageName, isWon, isLost } from '../lib/pipeline'
 import { compactMoney, getMetrics, getMonthlyPerformance, initials, money, topObjections } from '../lib/analytics'
+import './dashboard-no-show.css'
 
 const palette = ['var(--color-chart-primary, #8b62d9)', 'var(--color-chart-secondary, #b59ae9)', 'var(--color-chart-neutral-1, #d8c9f1)', 'var(--color-chart-neutral-2, #ede6f8)', 'var(--color-chart-neutral-3, #a8b3c8)']
 const stagePalette = ['var(--color-chart-neutral-1, #c6b9e6)', 'var(--color-chart-neutral-2, #ac95d4)', 'var(--color-chart-neutral-3, #9676ca)', 'var(--color-chart-secondary, #8660c0)', 'var(--color-chart-primary, #734caf)', 'var(--color-chart-success, #48a18b)']
 const tooltipContentStyle = { backgroundColor: 'var(--color-surface-raised, #fff)', border: '1px solid var(--color-border, #ccc)', color: 'var(--color-text-primary, inherit)' }
 const tooltipLabelStyle = { color: 'var(--color-text-primary, inherit)' }
 const pct = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+
+function NoShowMetric({ rate, missed, previousRate }: { rate: number | null; missed: number; previousRate: number | null }) {
+  const change = rate !== null && previousRate !== null ? rate - previousRate : null
+  const variation = change === null || change === 0 ? null : Math.abs(change).toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  const comparison = change === null ? 'Sem comparação com o mês anterior' : change === 0
+    ? 'Sem alteração em relação ao mês anterior'
+    : `${change < 0 ? 'Redução' : 'Aumento'} de ${variation} pontos percentuais em relação ao mês anterior`
+  return <div className="attendance-no-show" role="group" aria-label="Taxa de no-show">
+    <span className="no-show-label">Taxa de no-show</span>
+    <strong className="no-show-value">{rate === null ? '—' : pct(rate)}</strong>
+    <span className="no-show-count">{missed} {missed === 1 ? 'falta registrada' : 'faltas registradas'}</span>
+    <span className={`trend ${change === null || change === 0 ? 'neutral' : change < 0 ? 'positive' : 'negative'}`}
+      title={change === null ? 'Sem base de comparação com o mês anterior' : 'Variação em pontos percentuais em relação ao mês anterior'} aria-label={comparison}>
+      {variation === null ? '—' : <>{change !== null && change < 0 ? <ArrowDownRight size={13} aria-hidden="true" /> : <ArrowUpRight size={13} aria-hidden="true" />}{variation} p.p.</>}
+    </span>
+  </div>
+}
 export default function Dashboard({ leads, allLeads, previousLeads, settings, pipelineStages = defaultPipelineStages(), onPage, onEdit, onOpen }: { leads: Lead[]; allLeads: Lead[]; previousLeads: Lead[]; settings: Settings; pipelineStages?: PipelineStage[]; onPage: (page: 'pipeline' | 'calls' | 'performance') => void; onEdit: (lead: Lead) => void; onOpen?: (lead: Lead) => void }) {
   const metrics = getMetrics(leads)
   const previous = getMetrics(previousLeads)
@@ -28,7 +46,7 @@ export default function Dashboard({ leads, allLeads, previousLeads, settings, pi
   return <>
     <div className="metrics-grid">{stats.map(({ label, value, icon: Icon, current, prior, hint, tone }) => {
       const change = prior > 0 ? (current - prior) / prior * 100 : null
-      return <div className="stat-card" key={label}><div className="stat-top"><span className="stat-label">{label}</span><span className={`stat-icon ${tone}`}><Icon size={17} strokeWidth={1.8} /></span></div><div className="stat-value">{value}</div><div className="stat-bottom">{change !== null ? <span className={`trend ${change >= 0 ? 'positive' : 'negative'}`}>{change >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}{Math.abs(change).toFixed(1).replace('.', ',')}%</span> : <span className="trend neutral">—</span>}<span>{hint}</span></div></div>
+      return <div className="stat-card" key={label}><div className="stat-top"><span className="stat-label">{label}</span><span className={`stat-icon ${tone}`}><Icon size={17} strokeWidth={1.8} /></span></div><div className="stat-value">{value}</div><div className="stat-bottom">{change !== null ? <span className={`trend ${change >= 0 ? 'positive' : 'negative'}`}>{change >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}{Math.abs(change).toFixed(1).replace('.', ',')}%</span> : <span className="trend neutral">—</span>}<span>{hint}</span></div>{label === 'Taxa de comparecimento' && <NoShowMetric rate={metrics.noShowRate} missed={metrics.missed} previousRate={previous.noShowRate} />}</div>
     })}</div>
     <div className="dashboard-chart-grid">
       <section className="panel revenue-panel"><div className="panel-header"><div><h2>Receita em movimento</h2><p>Seis meses da sua evolução em vendas</p></div><span className="chart-legend"><i />Faturamento</span></div><div className="chart-summary"><strong>{money(months.reduce((sum, month) => sum + month.revenue, 0))}</strong><span>acumulado nos últimos 6 meses</span></div><div className="revenue-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={months} margin={{ top: 10, right: 5, left: -12, bottom: 0 }}><defs><linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--color-chart-primary, #8c60dc)" stopOpacity={0.24} /><stop offset="100%" stopColor="var(--color-chart-primary, #8c60dc)" stopOpacity={0.01} /></linearGradient></defs><CartesianGrid vertical={false} stroke="var(--color-chart-grid, #eef0f4)" strokeDasharray="4 4" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'var(--color-chart-axis, #8991a0)', fontSize: 11 }} dy={9} /><YAxis width={72} tickFormatter={value => Number(value) === 0 ? 'R$ 0' : `${Number(value) / 1000} mil`} axisLine={false} tickLine={false} tick={{ fill: 'var(--color-chart-axis, #8991a0)', fontSize: 10 }} /><Tooltip formatter={value => [money(Number(value)), 'Faturamento']} contentStyle={{ ...tooltipContentStyle, border: '1px solid var(--color-border, #e9e5f2)', borderRadius: 12, fontSize: 12 }} labelStyle={tooltipLabelStyle} /><Area isAnimationActive={false} type="monotone" dataKey="revenue" stroke="var(--color-chart-primary, #8c60dc)" strokeWidth={2.8} fill="url(#revenueGradient)" activeDot={{ r: 5, strokeWidth: 4, stroke: 'var(--color-primary-soft, #e7ddfa)' }} /></AreaChart></ResponsiveContainer></div></section>

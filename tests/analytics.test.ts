@@ -18,7 +18,9 @@ describe('conversion metrics', () => {
       lead(),
     ])
     expect(metrics.attended).toBe(3)
+    expect(metrics.missed).toBe(1)
     expect(metrics.showRate).toBe(75)
+    expect(metrics.noShowRate).toBe(25)
     expect(metrics.closeRate).toBeCloseTo(100 / 3)
     expect(metrics.qualified).toBe(4)
     expect(metrics.revenue).toBe(20_000)
@@ -26,7 +28,7 @@ describe('conversion metrics', () => {
   })
 
   it('does not divide by zero or count open proposed tickets as revenue', () => {
-    expect(getMetrics([])).toMatchObject({ revenue: 0, closed: 0, closeRate: 0, showRate: 0, averageTicket: 0 })
+    expect(getMetrics([])).toMatchObject({ revenue: 0, closed: 0, missed: 0, closeRate: 0, showRate: 0, noShowRate: null, averageTicket: 0 })
     expect(getMetrics([lead({ status: 'Follow-up', ticket: 50_000, closedValue: 50_000 })]).revenue).toBe(0)
   })
 
@@ -37,6 +39,42 @@ describe('conversion metrics', () => {
     expect(new Set(demo.map(item => item.id)).size).toBe(38)
     expect(metrics).toMatchObject({ revenue: 148_000, closed: 8, attended: 14, averageTicket: 18_500 })
     expect(metrics.showRate).toBeCloseTo(14 / 17 * 100)
+    expect(metrics.noShowRate).toBeCloseTo(3 / 17 * 100)
+  })
+
+  it('distinguishes an unknown no-show rate from a measured zero or one hundred percent', () => {
+    expect(getMetrics([lead(), lead({ status: 'Call agendada', callDate: now.toISOString() })])).toMatchObject({ attended: 0, missed: 0, noShowRate: null })
+    expect(getMetrics([lead({ attendance: 'Compareceu' }), lead()])).toMatchObject({ attended: 1, missed: 0, noShowRate: 0, showRate: 100 })
+    expect(getMetrics([lead({ attendance: 'Não compareceu' }), lead()])).toMatchObject({ attended: 0, missed: 1, noShowRate: 100, showRate: 0 })
+  })
+
+  it('uses canonical WON semantics once, even when legacy attendance is inconsistent', () => {
+    const metrics = getMetrics([
+      lead({ status: 'Follow-up', stageType: 'WON', attendance: 'Não compareceu', closedValue: 24000 }),
+      lead({ status: 'Fechado', stageType: 'NORMAL', attendance: 'Não compareceu' }),
+      lead({ stageType: 'LOST', attendance: 'Pendente' }),
+    ])
+    expect(metrics).toMatchObject({ attended: 1, missed: 1, noShowRate: 50, showRate: 50, closeRate: 100, revenue: 24000 })
+  })
+
+  it('calculates no-show from the selected period without including pending calls', () => {
+    const records = [
+      lead({ callDate: new Date(2026, 9, 4).toISOString(), attendance: 'Compareceu' }),
+      lead({ callDate: new Date(2026, 9, 5).toISOString(), attendance: 'Não compareceu' }),
+      lead({ callDate: new Date(2026, 9, 10).toISOString(), attendance: 'Pendente' }),
+      lead({ callDate: new Date(2026, 8, 5).toISOString(), attendance: 'Compareceu' }),
+      lead({ callDate: new Date(2026, 6, 5).toISOString(), attendance: 'Não compareceu' }),
+    ]
+    expect(getMetrics(getPeriodLeads(records, 'month', now))).toMatchObject({ attended: 1, missed: 1, noShowRate: 50 })
+    expect(getMetrics(getPeriodLeads(records, 'quarter', now)).noShowRate).toBeCloseTo(100 / 3)
+    expect(getMetrics(getPeriodLeads(records, 'all', now)).noShowRate).toBe(50)
+  })
+
+  it('uses only the permission-scoped input rather than a global lead collection', () => {
+    const permitted = [lead({ attendance: 'Não compareceu' }), lead()]
+    const otherUsers = [lead({ attendance: 'Compareceu' }), lead({ attendance: 'Compareceu' })]
+    expect(getMetrics(permitted)).toMatchObject({ attended: 0, missed: 1, noShowRate: 100 })
+    expect(getMetrics([...permitted, ...otherUsers]).noShowRate).toBeCloseTo(100 / 3)
   })
 })
 

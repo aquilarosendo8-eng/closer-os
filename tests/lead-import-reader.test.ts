@@ -182,6 +182,12 @@ describe('safe mapping and preservation', () => {
     expect((await prepared('Nome\nAna', { members: [{ userId: ownerId, displayName: 'Viewer', role: 'viewer' }] })).records).toHaveLength(0)
     expect((await prepared('Nome\nAna', { members: [{ userId: ownerId, displayName: 'Former', active: false }] })).records).toHaveLength(0)
   })
+  it('allows an active SDR as an existing lead owner without creating or elevating members', async () => {
+    const result = await prepared('Nome\nAna', { members: [{ userId: ownerId, displayName: 'Ana SDR', role: 'sdr', active: true }] })
+    expect(result.records).toHaveLength(1)
+    expect(result.records[0]).toMatchObject({ ownerId, stageId })
+    expect(result.errors).toHaveLength(0)
+  })
   it('keeps unknown columns ignored until the user deliberately appends labeled literal contents', async () => {
     const file = parseImportCsv('Nome;Notas;Custom\nAna;Original;<script>alert(1)</script>')
     const mapping = suggestColumnMappings(file.headers)

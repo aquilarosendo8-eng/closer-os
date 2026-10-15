@@ -85,7 +85,7 @@ export function Calls({ leads, onEdit, onUpdate, canEdit = true, role, userId, l
   const dialogRef = useRef<HTMLElement>(null)
   const recordingRef = useRef<HTMLInputElement>(null)
   const leadershipAllowed = (role === 'admin' || role === 'manager') && canReview !== false && !!onReview
-  const canEditCall = (lead: Lead) => canEdit && role !== 'viewer' && (role !== 'closer' || !!userId && leadOwners?.[lead.id] === userId)
+  const canEditCall = (lead: Lead) => canEdit && role !== 'viewer' && (!['closer', 'sdr'].includes(role || '') || !!userId && leadOwners?.[lead.id] === userId)
   const editingAllowed = !!draft && canEditCall(draft)
   const busy = saving || reviewSaving
   const responsibleName = (lead: Lead) => {

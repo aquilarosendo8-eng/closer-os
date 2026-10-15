@@ -15,14 +15,14 @@ O [registro da implantação](docs/IMPLANTACAO.md) reúne a versão publicada, a
 ## Recursos
 
 - **CRM:** leads, empresa, contato, ticket previsto, origem, data da call, comparecimento, objeções, etapa, valor fechado e observações. Ao fechar uma venda, os indicadores são recalculados; oportunidades abertas sem contato há mais de cinco dias aparecem em vermelho.
-- **Dashboard:** receita, calls realizadas, show rate, close rate, ticket médio, meta e comissão projetada. Gráficos mensais de receita e fechamento, além de qualificados versus fechados.
+- **Dashboard:** receita, calls realizadas, show rate e taxa de no-show associadas no mesmo card, close rate, ticket médio, meta e comissão projetada. Gráficos mensais de receita e fechamento, além de qualificados versus fechados.
 - **Calls e performance:** nota de 0 a 10, erros recorrentes, dor, urgência, capacidade financeira, decisor, objeções e evolução semanal. A leitura assistida de resumos usa regras locais e sugestões editáveis; não chama um provedor de IA.
 - **Contas privadas:** Supabase Auth, confirmação de e-mail, criação/alteração/recuperação de senha e saída. O CRM exige associação autorizada à empresa, pelo cadastro próprio ou aceite de convite.
-- **Empresas e equipe:** isolamento no PostgreSQL por RLS, quatro papéis, convites com nome/e-mail/papel, envio e reenvio por e-mail, cópia para WhatsApp, estados de ativação e limites de assentos. Contas novas ativam o acesso; contas existentes usam sua própria senha no link manual. A credencial administrativa permanece no servidor.
+- **Empresas e equipe:** isolamento no PostgreSQL por RLS, cinco papéis, incluindo SDR — Pré-vendas, convites com nome/e-mail/papel, envio e reenvio por e-mail, cópia para WhatsApp, estados de ativação e limites de assentos. Contas novas ativam o acesso; contas existentes usam sua própria senha no link manual. A credencial administrativa permanece no servidor.
 - **Administração Master:** informações institucionais, contato comercial, equipe, convites, planos, integrações, auditoria administrativa, suspensão e exclusão protegida de empresas, sem exigir membership. O papel da plataforma não concede acesso aos dados comerciais dos clientes. Consulte [Administração Master](docs/ADMINISTRACAO-MASTER.md).
 - **Dados:** exportação CSV, backup JSON e [importação guiada de CSV/XLSX](docs/IMPORTACAO-LEADS.md), com mapeamento, prévia, deduplicação por empresa e retomada em lotes sem sobrescrever oportunidades. A restauração JSON e a migração explícita dos leads pessoais do navegador mantêm suas permissões anteriores. O administrador da empresa dispõe de portabilidade, política de retenção, transferência de responsabilidade e exclusão com confirmação.
 
-Receita usa a data de fechamento; show rate exclui calls pendentes; close rate divide vendas fechadas por comparecimentos. A comissão é uma projeção gerencial, não um pagamento conciliado. A central de ajuda descreve os denominadores.
+Receita usa a data de fechamento; show rate e no-show excluem calls pendentes; close rate divide vendas fechadas por comparecimentos. No-show divide faltas por comparecimentos mais faltas e exibe `—` sem calls concluídas. A comissão é uma projeção gerencial, não um pagamento conciliado. A central de ajuda descreve os denominadores. Consulte [SDR e no-show](docs/SDR-E-NO-SHOW.md).
 
 ## Executar
 
@@ -54,6 +54,7 @@ Conectar a integração fornece configurações; o build configurado é que inst
 | `admin` | Leads, equipe, metas e operações de privacidade da própria empresa. |
 | `manager` | Leads da empresa, distribuição de responsáveis, metas e consulta da equipe. Não promove membros nem administra cobrança. |
 | `closer` | Consulta e edição dos leads atribuídos a si. |
+| `sdr` | Pré-vendas com as mesmas permissões operacionais do Closer: somente leads atribuídos a si, qualificação e agendamento; sem administração ou redistribuição. |
 | `viewer` | Consulta dos leads da empresa, sem edição e sem exportação pela interface. |
 
 O banco valida as permissões mesmo em chamadas diretas à API. Desativação, vencimento e suspensão são conferidos a cada requisição; não dependem de esconder botões.
@@ -76,7 +77,7 @@ npm run test:saas
 npm run test:db
 ```
 
-Os testes cobrem métricas, demonstração, autenticação, administração, integrações, oportunidades, importação e isolamento no banco. `npm test` reúne **487 testes unitários**, incluindo **69 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API. `test:db` executa as dez migrations e **1.440 verificações reais**, com **22 cenários de concorrência**, em PostgreSQL isolado. Esses comandos não usam o projeto Supabase de produção. Os **33 cenários de navegador do importador** podem ser executados com `npx playwright test --config=playwright.smart-import.config.ts`; contratos, limites e validação estão em [Importação de leads](docs/IMPORTACAO-LEADS.md).
+Os testes cobrem métricas, demonstração, autenticação, administração, integrações, oportunidades, importação e isolamento no banco. `npm test` reúne **499 testes unitários**, incluindo **71 verificações das APIs de convites**. `test:saas` reúne **44 fluxos de navegador** com respostas simuladas da API. `test:db` executa as onze migrations e **1.545 verificações reais**, com **22 cenários de concorrência**, em PostgreSQL isolado. Esses comandos não usam o projeto Supabase de produção. Os **33 cenários de navegador do importador** podem ser executados com `npx playwright test --config=playwright.smart-import.config.ts`; contratos, limites e validação estão em [Importação de leads](docs/IMPORTACAO-LEADS.md).
 
 No Supabase conectado, `scripts/test-live.mjs` foi executado com **59 verificações reais de Auth/REST/RLS**: login, convites, papéis, isolamento entre empresas, persistência, distribuição de leads, suspensão e desativação. As contas, empresas e demais fixtures temporárias foram removidas ao concluir. Essa verificação exige credenciais protegidas e autorização para criar fixtures; não faz parte automática da suíte local. Ela não testa entrega de e-mails nem restauração de backups.
 

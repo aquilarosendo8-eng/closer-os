@@ -1,6 +1,6 @@
 import type { Settings } from '../types'
 
-export type WorkspaceRole = 'admin' | 'manager' | 'closer' | 'viewer'
+export type WorkspaceRole = 'admin' | 'manager' | 'closer' | 'sdr' | 'viewer'
 export type SubscriptionPlan = 'individual' | 'team'
 export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'suspended' | 'cancelled'
 

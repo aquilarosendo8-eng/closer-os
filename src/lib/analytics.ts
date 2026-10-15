@@ -51,9 +51,11 @@ export function getMetrics(leads: Lead[]) {
     revenue,
     closed,
     attended,
+    missed,
     scheduled: leads.filter(lead => !!dateOf(lead.callDate)).length,
     qualified: leads.filter(isQualified).length,
     showRate: attended + missed ? attended / (attended + missed) * 100 : 0,
+    noShowRate: attended + missed ? missed / (attended + missed) * 100 : null,
     closeRate: attended ? closed / attended * 100 : 0,
     averageTicket: closed ? revenue / closed : 0,
   }

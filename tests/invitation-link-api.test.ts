@@ -52,6 +52,18 @@ async function invoke(handler: any, req = request()) {
 const rollback = { p_workspace_id: WORKSPACE, p_invitation_id: INVITATION }
 
 describe('manual access link', () => {
+  it('keeps SDR invitation authorization caller-scoped before generating an activation credential', async () => {
+    const f = fixture(), req = request()
+    req.body.role = 'sdr'
+    const res = await invoke(f.handler, req)
+    expect(res.statusCode).toBe(201)
+    expect(f.events).toEqual(['caller-client', 'invite_member', 'privileged-client', 'create-new-auth', 'generate-invite'])
+    expect(f.rpc).toHaveBeenCalledWith('invite_member', { p_workspace_id: WORKSPACE, p_email: 'client@example.com', p_role: 'sdr', p_name: 'Maria Silva' })
+    expect(res.body.invitation.role).toBe('sdr')
+    expect(res.body.manualLink).toBe(true)
+    expect(f.inviteUserByEmail).not.toHaveBeenCalled()
+    expect(JSON.stringify(res.body)).not.toContain(SECRET)
+  })
   it('authorizes the caller then generates an activation link without using SMTP or returning SDK credentials', async () => {
     const f = fixture(), res = await invoke(f.handler, request('  Maria Silva  '))
     expect(res.statusCode).toBe(201)

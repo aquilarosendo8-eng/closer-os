@@ -78,7 +78,7 @@
 .crm-visual .ad-member-table .ad-role-editor select { min-width: 140px; min-height: var(--control-height-sm, 30px); padding: 5px 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-secondary, 12px); }
 .crm-visual .ad-save-role { min-height: var(--control-height-sm, 30px); padding: 4px 7px; gap: 4px; font-size: var(--font-size-secondary, 12px); }
 .crm-visual .ad-protected-label { margin-top: 3px; font-size: var(--font-size-label, 11px); line-height: 1.5; }
-.crm-visual .ad-role-guide { padding: var(--space-3, 12px) var(--space-4, 16px); gap: var(--space-4, 16px); }
+.crm-visual .ad-role-guide { grid-template-columns: repeat(5, minmax(0, 1fr)); padding: var(--space-3, 12px) var(--space-4, 16px); gap: var(--space-4, 16px); }
 .crm-visual .ad-role-guide > span { font-size: var(--font-size-secondary, 12px); line-height: 1.5; }
 .crm-visual .ad-role-guide b { margin-bottom: 3px; font-size: var(--font-size-secondary, 12px); font-weight: 600; }
 .crm-visual .ad-notice, .crm-visual .ad-error { padding: 10px 12px; gap: 8px; border-radius: var(--radius-sm, 6px); font-size: var(--font-size-body, 13px); line-height: 1.5; overflow-wrap: anywhere; }
@@ -266,6 +266,7 @@
   .auth-shell .auth-story h1 { font-size: 28px; }
 }
 @media (max-width: 1000px) {
+  .crm-visual .ad-role-guide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .crm-visual .ad-audit-entry time { padding-left: 40px; }
   .auth-shell .auth-main { padding-right: 24px; padding-left: 24px; }
 }

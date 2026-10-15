@@ -195,6 +195,24 @@ async function main() {
       || Number(externalImportAccess[0].private_helpers) !== externalImportHelpers.length || !externalImportAccess[0].legacy_json_rpc) {
     fail('A importação de leads precisa de RPCs autorizadas, proveniência privada, limpeza sem locks de leads existentes e preservação da importação JSON.')
   }
+  const sdrSignatures = ['private.can_read_lead(uuid,uuid)', 'private.can_write_lead(uuid,uuid)', 'private.assignable_owner(uuid,uuid)',
+    'public.invite_member(uuid,text,text,text)', 'public.update_member(uuid,uuid,text,boolean)',
+    'public.save_activity(uuid,text,text,text,timestamp with time zone,uuid,text,uuid)',
+    'public.platform_inbound_options(uuid)', 'public.platform_list_administrative_audit(uuid)']
+  const sdrAccess = await query(`select
+    (select count(*) from pg_constraint where contype='c' and convalidated
+      and ((conrelid='public.memberships'::regclass and conname='memberships_role_check')
+        or (conrelid='public.invitations'::regclass and conname='invitations_role_check'))
+      and position('''sdr''' in pg_get_constraintdef(oid))>0) as role_constraints,
+    (select count(*) from pg_proc p where p.oid in (${sdrSignatures.map(value => `to_regprocedure(${sqlString(value)})`).join(',')})
+      and p.prosecdef and 'search_path=""'=any(p.proconfig) and position('''sdr''' in p.prosrc)>0
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+      and not exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where a.grantee=0 and a.privilege_type='EXECUTE')
+      and not exists(select 1 from unnest(coalesce(p.proconfig,array[]::text[])) setting where setting like 'request.jwt.%')) as guarded_functions`)
+  if (sdrAccess.length !== 1 || Number(sdrAccess[0].role_constraints) !== 2 || Number(sdrAccess[0].guarded_functions) !== sdrSignatures.length) {
+    fail('O cargo SDR precisa de validação nos membros e convites e das funções autorizadas com escopo operacional restrito.')
+  }
   console.log(`Autorização: ${expectedTables.length} tabelas com RLS ativada e leads vinculados a etapas.`)
   if (values['check-only']) { console.log('Verificação concluída, sem alteração de contas ou dados.'); return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail)) fail('Informe --owner-email ou CLOSER_OWNER_EMAIL para preparar o acesso do dono.')

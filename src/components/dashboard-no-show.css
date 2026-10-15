@@ -1,0 +1,25 @@
+.crm-visual .attendance-no-show {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--color-border);
+}
+.crm-visual .no-show-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-secondary, 12px);
+}
+.crm-visual .no-show-value {
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.crm-visual .no-show-count {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-label, 11px);
+  line-height: 1.4;
+}
+.crm-visual .attendance-no-show .trend { justify-self: end; white-space: nowrap; }
